@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Diwali Sky - Link Preview</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      width: 1200px;
+      height: 630px;
+      overflow: hidden;
+      background: linear-gradient(180deg, #020617 0%, #0F172A 55%, #0F2431 100%);
+      font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      color: #F1F5F9;
+      position: relative;
+    }
+    #top-bar {
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 6px;
+      background: linear-gradient(90deg, #059669, #0D9488, #06B6D4);
+      z-index: 10;
+    }
+    canvas {
+      position: absolute;
+      top: 0; left: 0;
+      width: 1200px;
+      height: 630px;
+      z-index: 1;
+    }
+    .content-box {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 5;
+      text-align: center;
+      padding: 40px;
+    }
+    .logo-chip {
+      background: #FFFFFF;
+      border-radius: 12px;
+      padding: 8px 16px;
+      box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -4px rgba(0,0,0,0.1);
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 28px;
+    }
+    .logo-chip img {
+      height: 36px;
+      width: auto;
+    }
+    .headline {
+      font-size: 64px;
+      font-weight: 800;
+      letter-spacing: -0.01em;
+      background: linear-gradient(90deg, #34D399, #2DD4BF, #22D3EE);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 18px;
+      text-shadow: 0 0 30px rgba(52, 211, 153, 0.25);
+    }
+    .subtext {
+      font-size: 26px;
+      color: #CBD5E1;
+      font-weight: 500;
+      max-width: 800px;
+      line-height: 1.4;
+      margin-bottom: 30px;
+    }
+    .badge {
+      background: rgba(15, 23, 42, 0.85);
+      border: 1px solid #2DD4BF;
+      color: #A7F3D0;
+      border-radius: 999px;
+      padding: 8px 20px;
+      font-size: 16px;
+      font-weight: 600;
+      box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+    }
+  </style>
+</head>
+<body>
+  <div id="top-bar"></div>
+  <canvas id="sky"></canvas>
+  <div class="content-box">
+    <div class="logo-chip">
+      <img src="../assets/logo.png" alt="Wrench Wise" onerror="this.style.display='none';document.getElementById('fallback').style.display='inline-block';" />
+      <span id="fallback" style="display:none;font-weight:800;font-size:22px;color:#111827;">Wrench Wise</span>
+    </div>
+    <h1 class="headline">A Diwali surprise for you</h1>
+    <p class="subtext">Someone wrote your name in fireworks across the night sky.</p>
+    <div class="badge">Built with code by Wrench Wise</div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('sky');
+    const ctx = canvas.getContext('2d');
+    canvas.width = 1200;
+    canvas.height = 630;
+
+    // Draw stars
+    for (let i = 0; i < 180; i++) {
+      const x = Math.random() * 1200;
+      const y = Math.random() * 520;
+      const r = Math.random() * 1.5 + 0.5;
+      const a = Math.random() * 0.7 + 0.3;
+      ctx.fillStyle = `rgba(226, 232, 240, ${a})`;
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Function to draw a firework burst
+    function drawBurst(cx, cy, color, count, radius) {
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      for (let i = 0; i < count; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const dist = Math.pow(Math.random(), 0.7) * radius;
+        const px = cx + Math.cos(angle) * dist;
+        const py = cy + Math.sin(angle) * dist;
+        const size = Math.random() * 2.5 + 1.2;
+        const alpha = Math.random() * 0.6 + 0.4;
+        ctx.fillStyle = color;
+        ctx.globalAlpha = alpha;
+        ctx.beginPath();
+        ctx.arc(px, py, size, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
+    }
+
+    // Draw decorative bursts
+    drawBurst(200, 160, '#34D399', 110, 140); // Emerald (top left)
+    drawBurst(1020, 180, '#22D3EE', 120, 150); // Cyan (top right)
+    drawBurst(320, 440, '#FCD34D', 90, 120);  // Gold (lower left)
+    drawBurst(900, 430, '#2DD4BF', 100, 130); // Teal (lower right)
+    drawBurst(600, 110, '#A7F3D0', 80, 100);  // Mint (top center)
+
+    // Soft horizon glow
+    const hGlow = ctx.createLinearGradient(0, 500, 0, 630);
+    hGlow.addColorStop(0, 'rgba(16, 185, 129, 0)');
+    hGlow.addColorStop(1, 'rgba(16, 185, 129, 0.16)');
+    ctx.fillStyle = hGlow;
+    ctx.fillRect(0, 500, 1200, 130);
+  </script>
+</body>
+</html>
