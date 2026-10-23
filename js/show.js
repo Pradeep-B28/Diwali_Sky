@@ -71,7 +71,14 @@ export class ShowTimeline {
   start(name = 'Priya', senderName = 'Vivek', greeting = 'Happy Diwali') {
     this.name = name || 'Priya';
     this.senderName = senderName || '';
-    this.greeting = greeting || 'Happy Diwali';
+
+    // Ensure full greeting text always displays "Happy Diwali" or "Happy Deepavali"
+    const lower = (greeting || '').toLowerCase().trim();
+    if (lower === 'deepavali' || lower === 'happy deepavali') {
+      this.greeting = 'Happy Deepavali';
+    } else {
+      this.greeting = 'Happy Diwali';
+    }
 
     this.nameData = generateNamePoints(this.name, this.sky.width, this.sky.height);
     this.sparkCount = Math.min(this.nameData.points.length, this.maxCapacity);

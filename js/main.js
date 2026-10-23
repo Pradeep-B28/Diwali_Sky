@@ -76,7 +76,10 @@ class DiwaliSkyApp {
     this.selectedBurstType = null;
     this.lastTapTime = 0;
 
+    this.freezeTime = urlParams.get('freeze') !== null ? parseFloat(urlParams.get('freeze')) : null;
+
     this.initDebugHud();
+    this.initFrameTools();
     this.bindEvents();
 
     // Check for self-test query param
@@ -84,8 +87,22 @@ class DiwaliSkyApp {
       runSelfTests();
     }
 
-    // Route based on URL hash, demo mode, or autoplay
-    if (this.isDemoMode) {
+    // Freeze mode for exact frame testing: ?debug=1&freeze=7.5
+    if (this.isDebug && this.freezeTime !== null && !isNaN(this.freezeTime)) {
+      this.ui.clear();
+      this.playShow(this.queryName, this.querySender);
+      const stepDt = 1 / 60;
+      while (this.show.currentTime < this.freezeTime) {
+        this.skyManager.updateAndDraw(stepDt);
+        this.fireworks.update(stepDt);
+        this.particlePool.update(stepDt);
+        this.show.update(stepDt);
+      }
+      this.particlePool.draw(this.skyManager.fireworksCtx, this.skyManager.width, this.skyManager.height, stepDt);
+      this.fireworks.draw(this.skyManager.fireworksCtx);
+      this.show.draw(this.skyManager.fireworksCtx, stepDt);
+      this.isPaused = true;
+    } else if (this.isDemoMode) {
       this.demoManager.start(this.demoName);
     } else {
       this.handleHashRoute();
@@ -97,6 +114,36 @@ class DiwaliSkyApp {
     }
 
     this.startLoop();
+  }
+
+  initFrameTools() {
+    if (!this.isDebug) return;
+
+    window.dsPause = () => {
+      this.isPaused = true;
+      console.log(`[FrameTool] Paused at show time: ${this.show.currentTime.toFixed(3)}s`);
+    };
+
+    window.dsResume = () => {
+      this.isPaused = false;
+      this.lastTime = performance.now();
+      console.log('[FrameTool] Resumed');
+    };
+
+    window.dsStep = (seconds = 1 / 60) => {
+      const fixedDt = 1 / 60;
+      const count = Math.max(1, Math.round(seconds / fixedDt));
+      for (let i = 0; i < count; i++) {
+        this.skyManager.updateAndDraw(fixedDt);
+        this.fireworks.update(fixedDt);
+        this.particlePool.update(fixedDt);
+        this.show.update(fixedDt);
+      }
+      this.particlePool.draw(this.skyManager.fireworksCtx, this.skyManager.width, this.skyManager.height, fixedDt);
+      this.fireworks.draw(this.skyManager.fireworksCtx);
+      this.show.draw(this.skyManager.fireworksCtx, fixedDt);
+      console.log(`[FrameTool] Stepped forward ${seconds}s to show time: ${this.show.currentTime.toFixed(3)}s`);
+    };
   }
 
   wireAudioCallbacks() {
@@ -148,8 +195,16 @@ class DiwaliSkyApp {
   }
 
   initDebugHud() {
-    if (!this.isDebug || !this.debugHud) return;
+    if (!this.isDebug || !this.debugHud) {
+      if (this.debugHud) {
+        this.debugHud.classList.remove('visible');
+        this.debugHud.style.display = 'none';
+      }
+      return;
+    }
 
+    this.debugHud.classList.add('visible');
+    this.debugHud.style.display = 'flex';
     this.debugHud.hidden = false;
 
     // Debug buttons for burst types
