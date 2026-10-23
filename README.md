@@ -4,7 +4,7 @@ A festive web application that writes any name in fireworks across a night sky.
 
 Built by Wrench Wise.
 
-Live link: https://diwali-sky.vercel.app
+Live link: https://diwalisky.vercel.app
 
 ---
 
