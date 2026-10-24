@@ -90,18 +90,30 @@ class DiwaliSkyApp {
     // Freeze mode for exact frame testing: ?debug=1&freeze=7.5
     if (this.isDebug && this.freezeTime !== null && !isNaN(this.freezeTime)) {
       this.ui.clear();
-      this.playShow(this.queryName, this.querySender);
+      this.playShow(this.queryName || 'Priya', this.querySender || 'Vivek');
       const stepDt = 1 / 60;
       while (this.show.currentTime < this.freezeTime) {
         this.skyManager.updateAndDraw(stepDt);
         this.fireworks.update(stepDt);
         this.particlePool.update(stepDt);
         this.show.update(stepDt);
+        this.particlePool.draw(this.skyManager.fireworksCtx, this.skyManager.width, this.skyManager.height, stepDt);
+        this.fireworks.draw(this.skyManager.fireworksCtx);
+        this.show.draw(this.skyManager.fireworksCtx, stepDt);
       }
-      this.particlePool.draw(this.skyManager.fireworksCtx, this.skyManager.width, this.skyManager.height, stepDt);
-      this.fireworks.draw(this.skyManager.fireworksCtx);
-      this.show.draw(this.skyManager.fireworksCtx, stepDt);
       this.isPaused = true;
+
+      // Update debug HUD values for frozen frame
+      if (this.debugHud) {
+        if (this.debugFps) this.debugFps.textContent = `FPS: 60`;
+        if (this.debugParticles) {
+          const totalParticles = this.particlePool.getActiveCount() + (this.show.isActive ? this.show.sparkCount : 0);
+          this.debugParticles.textContent = `Particles: ${totalParticles}`;
+        }
+        if (this.debugRockets) {
+          this.debugRockets.textContent = `Rockets: ${this.fireworks.getRocketCount()}`;
+        }
+      }
     } else if (this.isDemoMode) {
       this.demoManager.start(this.demoName);
     } else {
@@ -138,10 +150,10 @@ class DiwaliSkyApp {
         this.fireworks.update(fixedDt);
         this.particlePool.update(fixedDt);
         this.show.update(fixedDt);
+        this.particlePool.draw(this.skyManager.fireworksCtx, this.skyManager.width, this.skyManager.height, fixedDt);
+        this.fireworks.draw(this.skyManager.fireworksCtx);
+        this.show.draw(this.skyManager.fireworksCtx, fixedDt);
       }
-      this.particlePool.draw(this.skyManager.fireworksCtx, this.skyManager.width, this.skyManager.height, fixedDt);
-      this.fireworks.draw(this.skyManager.fireworksCtx);
-      this.show.draw(this.skyManager.fireworksCtx, fixedDt);
       console.log(`[FrameTool] Stepped forward ${seconds}s to show time: ${this.show.currentTime.toFixed(3)}s`);
     };
   }
