@@ -15,6 +15,7 @@ class DiwaliSkyApp {
     this.appContainer = document.getElementById('app-container');
     this.skyCanvas = document.getElementById('sky-canvas');
     this.fireworksCanvas = document.getElementById('fireworks-canvas');
+    this.bloomCanvas = document.getElementById('bloom-canvas');
     this.debugHud = document.getElementById('debug-hud');
     this.debugFpsEl = document.getElementById('debug-fps');
     this.debugParticlesEl = document.getElementById('debug-particles');
@@ -38,12 +39,21 @@ class DiwaliSkyApp {
 
     // Subsystems
     this.sound = new SoundManager();
-    this.skyManager = new SkyManager(this.skyCanvas, this.fireworksCanvas);
+    this.skyManager = new SkyManager(this.skyCanvas, this.fireworksCanvas, this.bloomCanvas);
     this.particlePool = new ParticlePool(this.initialBudget);
     this.fireworks = new FireworksEngine(this.particlePool);
     this.show = new ShowTimeline(this.fireworks, this.skyManager);
     this.ui = new UIManager(this, this.sound);
     this.demoManager = new DemoManager(this, this.ui, this.sound);
+
+    // Quality tier setup (?quality=high|medium|low)
+    const forcedQuality = (urlParams.get('quality') || '').toLowerCase();
+    if (['high', 'medium', 'low'].includes(forcedQuality)) {
+      this.qualityTier = forcedQuality;
+    } else {
+      this.qualityTier = isPhone ? 'medium' : 'high';
+    }
+    this.setQualityTier(this.qualityTier);
 
     this.isReceiverFlow = false;
 
@@ -101,6 +111,7 @@ class DiwaliSkyApp {
         this.fireworks.draw(this.skyManager.fireworksCtx);
         this.show.draw(this.skyManager.fireworksCtx, stepDt);
       }
+      this.skyManager.updateBloom();
       this.isPaused = true;
 
       // Update debug HUD values for frozen frame
@@ -154,8 +165,15 @@ class DiwaliSkyApp {
         this.fireworks.draw(this.skyManager.fireworksCtx);
         this.show.draw(this.skyManager.fireworksCtx, fixedDt);
       }
+      this.skyManager.updateBloom();
       console.log(`[FrameTool] Stepped forward ${seconds}s to show time: ${this.show.currentTime.toFixed(3)}s`);
     };
+  }
+
+  setQualityTier(tier) {
+    this.qualityTier = tier;
+    if (this.particlePool) this.particlePool.setQualityTier(tier);
+    if (this.skyManager) this.skyManager.setBloomEnabled(tier === 'high');
   }
 
   wireAudioCallbacks() {
@@ -366,6 +384,9 @@ class DiwaliSkyApp {
 
       // Draw name sparks and text overlays
       this.show.draw(this.skyManager.fireworksCtx, dt);
+
+      // Update bloom canvas (High tier)
+      this.skyManager.updateBloom();
 
       // Ambient fireworks when show is not actively forming
       if (this.enableAmbient && !this.show.isActive) {

@@ -1,11 +1,14 @@
 // sky.js - Stacked canvases, resize handling, night sky gradient, stars, and diyas
 
 export class SkyManager {
-  constructor(skyCanvas, fireworksCanvas) {
+  constructor(skyCanvas, fireworksCanvas, bloomCanvas = null) {
     this.skyCanvas = skyCanvas;
     this.fireworksCanvas = fireworksCanvas;
+    this.bloomCanvas = bloomCanvas;
     this.skyCtx = skyCanvas.getContext('2d');
     this.fireworksCtx = fireworksCanvas.getContext('2d');
+    this.bloomCtx = bloomCanvas ? bloomCanvas.getContext('2d') : null;
+    this.bloomEnabled = false;
 
     // Offscreen canvas for cached background gradient and horizon glow
     this.cachedSkyCanvas = document.createElement('canvas');
@@ -24,6 +27,27 @@ export class SkyManager {
     window.addEventListener('orientationchange', () => {
       setTimeout(() => this.resize(), 100);
     });
+  }
+
+  setBloomEnabled(enabled) {
+    this.bloomEnabled = !!enabled;
+    if (this.bloomCanvas) {
+      this.bloomCanvas.style.display = this.bloomEnabled ? 'block' : 'none';
+      if (!this.bloomEnabled && this.bloomCtx) {
+        this.bloomCtx.clearRect(0, 0, this.bloomCanvas.width, this.bloomCanvas.height);
+      }
+    }
+  }
+
+  updateBloom() {
+    if (!this.bloomEnabled || !this.bloomCtx || !this.bloomCanvas) return;
+    this.bloomCtx.clearRect(0, 0, this.bloomCanvas.width, this.bloomCanvas.height);
+    this.bloomCtx.drawImage(
+      this.fireworksCanvas,
+      0, 0,
+      this.bloomCanvas.width,
+      this.bloomCanvas.height
+    );
   }
 
   resize() {
@@ -49,6 +73,14 @@ export class SkyManager {
     this.fireworksCanvas.style.height = `${this.height}px`;
     this.fireworksCtx.setTransform(1, 0, 0, 1, 0, 0);
     this.fireworksCtx.scale(this.dpr, this.dpr);
+
+    // Resize bloom canvas at 1/4 resolution
+    if (this.bloomCanvas && this.bloomCtx) {
+      this.bloomCanvas.width = Math.max(1, Math.floor(physicalWidth / 4));
+      this.bloomCanvas.height = Math.max(1, Math.floor(physicalHeight / 4));
+      this.bloomCanvas.style.width = `${this.width}px`;
+      this.bloomCanvas.style.height = `${this.height}px`;
+    }
 
     // Pre-render static background to offscreen canvas
     this.renderCachedBackground();

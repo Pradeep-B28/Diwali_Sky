@@ -118,14 +118,14 @@ export class FireworksEngine {
 
   burstPeony(x, y, colors) {
     const isPhone = window.innerWidth < 600;
-    const count = this.isReducedMotion ? 50 : (isPhone ? 90 : 130);
-    const baseSpeed = isPhone ? 190 : 230;
+    const count = this.isReducedMotion ? 75 : (isPhone ? 210 : 310);
+    const baseSpeed = isPhone ? 238 : 288;
 
     for (let i = 0; i < count; i++) {
       const angle = Math.random() * Math.PI * 2;
       const speed = baseSpeed * (0.4 + 0.65 * Math.random());
       const colId = Math.random() < 0.55 ? colors[0] : colors[1];
-      const maxL = 1.1 + Math.random() * 0.45;
+      const maxL = (1.1 + Math.random() * 0.45) * 1.30;
 
       this.pool.spawn(
         x, y,
@@ -144,15 +144,15 @@ export class FireworksEngine {
 
   burstRing(x, y, colors) {
     const isPhone = window.innerWidth < 600;
-    const count = this.isReducedMotion ? 40 : (isPhone ? 65 : 90);
-    const baseSpeed = isPhone ? 180 : 220;
+    const count = this.isReducedMotion ? 65 : (isPhone ? 190 : 270);
+    const baseSpeed = isPhone ? 225 : 275;
     const rotOffset = Math.random() * Math.PI * 2;
 
     for (let i = 0; i < count; i++) {
       const angle = (i / count) * Math.PI * 2 + rotOffset;
       const speed = baseSpeed * (0.92 + 0.14 * Math.random());
       const colId = i % 2 === 0 ? colors[0] : colors[1];
-      const maxL = 1.1 + Math.random() * 0.35;
+      const maxL = (1.1 + Math.random() * 0.35) * 1.30;
 
       this.pool.spawn(
         x, y,
@@ -171,14 +171,14 @@ export class FireworksEngine {
 
   burstWillow(x, y) {
     const isPhone = window.innerWidth < 600;
-    const count = this.isReducedMotion ? 60 : (isPhone ? 110 : 155);
-    const baseSpeed = isPhone ? 150 : 190;
+    const count = this.isReducedMotion ? 85 : (isPhone ? 230 : 340);
+    const baseSpeed = isPhone ? 188 : 238;
 
     for (let i = 0; i < count; i++) {
       const angle = Math.random() * Math.PI * 2;
       const speed = baseSpeed * (0.35 + 0.7 * Math.random());
       const colId = Math.random() < 0.6 ? COLOR_IDS.gold : COLOR_IDS.amber;
-      const maxL = 2.4 + Math.random() * 0.6;
+      const maxL = (2.4 + Math.random() * 0.6) * 1.30;
 
       this.pool.spawn(
         x, y,
@@ -197,14 +197,14 @@ export class FireworksEngine {
 
   burstCrackle(x, y, colors) {
     const isPhone = window.innerWidth < 600;
-    const count = this.isReducedMotion ? 35 : (isPhone ? 65 : 85);
-    const baseSpeed = isPhone ? 170 : 210;
+    const count = this.isReducedMotion ? 60 : (isPhone ? 180 : 260);
+    const baseSpeed = isPhone ? 212 : 262;
 
     for (let i = 0; i < count; i++) {
       const angle = Math.random() * Math.PI * 2;
       const speed = baseSpeed * (0.4 + 0.65 * Math.random());
       const colId = colors[0];
-      const maxL = 0.45 + Math.random() * 0.35;
+      const maxL = (0.45 + Math.random() * 0.35) * 1.30;
 
       this.pool.spawn(
         x, y,

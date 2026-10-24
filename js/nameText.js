@@ -132,6 +132,8 @@ export function generateNamePoints(name, screenWidth, screenHeight) {
   function samplePoints(currentStep) {
     const pts = [];
     const textWidth = Math.max(1, maxX - minX);
+    const maxJitter = currentStep * 0.45;
+    const baseSize = isPhone ? 2.3 : 2.6;
 
     for (let y = minY; y <= maxY; y += currentStep) {
       for (let x = minX; x <= maxX; x += currentStep) {
@@ -139,31 +141,37 @@ export function generateNamePoints(name, screenWidth, screenHeight) {
         const alpha = data[idx + 3];
 
         if (alpha > 120) {
-          const u = Math.min(1.0, Math.max(0.0, (x - minX) / textWidth));
+          // Break the grid: random offset up to 45% of sampling step
+          const jitterX = (Math.random() * 2 - 1) * maxJitter;
+          const jitterY = (Math.random() * 2 - 1) * maxJitter;
+          const finalX = x + jitterX;
+          const finalY = y + jitterY;
+          const u = Math.min(1.0, Math.max(0.0, (finalX - minX) / textWidth));
 
-          // Color assignment: Wrench Wise gradient across the name
-          // Left: Emerald (#34D399, id 0), Mid: Teal (#2DD4BF, id 1), Right: Cyan (#22D3EE, id 2)
           // 1 in 10 is gold glint (#FCD34D, id 4)
           const isGlint = Math.random() < 0.10;
           let colorId = 0;
-
           if (isGlint) {
-            colorId = 4; // Gold glint
+            colorId = 4;
           } else if (u < 0.38) {
-            colorId = 0; // Emerald
+            colorId = 0;
           } else if (u < 0.68) {
-            colorId = 1; // Teal
+            colorId = 1;
           } else {
-            colorId = 2; // Cyan
+            colorId = 2;
           }
 
+          // Vary sizes between 70% and 130%
+          const sizeMult = 0.70 + Math.random() * 0.60;
+          const size = baseSize * sizeMult;
+
           pts.push({
-            targetX: x,
-            targetY: y,
+            targetX: finalX,
+            targetY: finalY,
             u,
             colorId,
             isGlint,
-            size: isPhone ? (2.1 + Math.random() * 0.7) : (2.4 + Math.random() * 0.8)
+            size
           });
         }
       }
@@ -184,22 +192,30 @@ export function generateNamePoints(name, screenWidth, screenHeight) {
   if (sampled.length < minBudget) {
     const needed = minBudget - sampled.length;
     const existingLen = sampled.length;
+    const baseSize = isPhone ? 2.3 : 2.6;
     for (let k = 0; k < needed; k++) {
       const src = sampled[k % existingLen];
-      const offsetX = (Math.random() - 0.5) * (step * 0.9);
-      const offsetY = (Math.random() - 0.5) * (step * 0.9);
+      const maxJitter = step * 0.45;
+      const offsetX = (Math.random() * 2 - 1) * maxJitter;
+      const offsetY = (Math.random() * 2 - 1) * maxJitter;
+      const newX = src.targetX + offsetX;
+      const newY = src.targetY + offsetY;
+      const newU = Math.min(1.0, Math.max(0.0, (newX - minX) / Math.max(1, maxX - minX)));
+      const isGlint = Math.random() < 0.10;
+      const sizeMult = 0.70 + Math.random() * 0.60;
+
       sampled.push({
-        targetX: src.targetX + offsetX,
-        targetY: src.targetY + offsetY,
-        u: src.u,
-        colorId: Math.random() < 0.1 ? 4 : src.colorId,
-        isGlint: Math.random() < 0.1,
-        size: src.size
+        targetX: newX,
+        targetY: newY,
+        u: newU,
+        colorId: isGlint ? 4 : (newU < 0.38 ? 0 : (newU < 0.68 ? 1 : 2)),
+        isGlint,
+        size: baseSize * sizeMult
       });
     }
   }
 
-  // If too many points (exceeds maximum budget), increase step or downsample
+  // If too many points (exceeds maximum budget), downsample
   if (sampled.length > maxBudget) {
     const keepRatio = maxBudget / sampled.length;
     sampled = sampled.filter(() => Math.random() < keepRatio);
@@ -210,6 +226,10 @@ export function generateNamePoints(name, screenWidth, screenHeight) {
 
   return {
     name,
+    lines,
+    lineHeight,
+    startY,
+    fontStack,
     points: sampled,
     count: sampled.length,
     fontSize,

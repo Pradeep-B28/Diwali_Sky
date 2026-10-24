@@ -1,5 +1,7 @@
 // particles.js - High-performance typed-array particle pool and physics
 
+import { PALETTE_SPRITES } from './sprites.js';
+
 export const PARTICLE_TYPES = {
   STANDARD: 0,
   WILLOW: 1,
@@ -37,6 +39,7 @@ export class ParticlePool {
   constructor(initialBudget = 6000) {
     this.capacity = MAX_CAPACITY;
     this.budget = initialBudget;
+    this.qualityTier = 'high';
 
     // Typed arrays for particle data
     this.x = new Float32Array(this.capacity);
@@ -69,6 +72,10 @@ export class ParticlePool {
 
   setReducedMotion(enabled) {
     this.isReducedMotion = enabled;
+  }
+
+  setQualityTier(tier) {
+    this.qualityTier = tier;
   }
 
   spawn(x, y, vx, vy, colorId, maxLife, size = 2.0, type = PARTICLE_TYPES.STANDARD, drag = 0.96, gravity = 120, flicker = 0) {
@@ -192,25 +199,55 @@ export class ParticlePool {
       const vy = this.vy[idx];
       const pType = this.type[idx];
 
-      const speedSq = vx * vx + vy * vy;
-      if (speedSq > 900 && pType !== PARTICLE_TYPES.CRACKLE_POP) {
-        // Motion streak
-        const streakFactor = pType === PARTICLE_TYPES.WILLOW ? 0.7 : 0.45;
-        const prevX = px - vx * streakDt * streakFactor;
-        const prevY = py - vy * streakDt * streakFactor;
+      const isLowTier = this.qualityTier === 'low';
 
-        ctx.strokeStyle = colorStr;
-        ctx.lineWidth = curSize;
-        ctx.lineCap = 'round';
-        ctx.beginPath();
-        ctx.moveTo(prevX, prevY);
-        ctx.lineTo(px, py);
-        ctx.stroke();
+      if (isLowTier) {
+        // Low quality tier: keep old fast square and stroke drawing for bursts
+        const aBin = Math.min(ALPHA_BINS, Math.max(0, Math.floor(alpha * ALPHA_BINS)));
+        const colorStr = COLOR_ALPHA_LUT[cId][aBin];
+
+        const speedSq = vx * vx + vy * vy;
+        if (speedSq > 900 && pType !== PARTICLE_TYPES.CRACKLE_POP) {
+          const streakFactor = pType === PARTICLE_TYPES.WILLOW ? 0.7 : 0.45;
+          const prevX = px - vx * streakDt * streakFactor;
+          const prevY = py - vy * streakDt * streakFactor;
+
+          ctx.strokeStyle = colorStr;
+          ctx.lineWidth = curSize;
+          ctx.lineCap = 'round';
+          ctx.beginPath();
+          ctx.moveTo(prevX, prevY);
+          ctx.lineTo(px, py);
+          ctx.stroke();
+        } else {
+          ctx.fillStyle = colorStr;
+          const half = curSize * 0.5;
+          ctx.fillRect(px - half, py - half, curSize, curSize);
+        }
       } else {
-        // Fast square or small dot
-        ctx.fillStyle = colorStr;
-        const half = curSize * 0.5;
-        ctx.fillRect(px - half, py - half, curSize, curSize);
+        // High and Medium tiers: glow sprite with hot white core and soft halo
+        const sprite = PALETTE_SPRITES[cId] || PALETTE_SPRITES[0];
+        const drawSize = curSize * 3.0;
+        const halfDraw = drawSize * 0.5;
+
+        // Long graceful streaks for willow droop
+        if (pType === PARTICLE_TYPES.WILLOW && speedSq > 400) {
+          const aBin = Math.min(ALPHA_BINS, Math.max(0, Math.floor(alpha * ALPHA_BINS)));
+          const colorStr = COLOR_ALPHA_LUT[cId][aBin];
+          const prevX = px - vx * streakDt * 0.65;
+          const prevY = py - vy * streakDt * 0.65;
+
+          ctx.strokeStyle = colorStr;
+          ctx.lineWidth = curSize * 1.1;
+          ctx.lineCap = 'round';
+          ctx.beginPath();
+          ctx.moveTo(prevX, prevY);
+          ctx.lineTo(px, py);
+          ctx.stroke();
+        }
+
+        ctx.globalAlpha = alpha;
+        ctx.drawImage(sprite, px - halfDraw, py - halfDraw, drawSize, drawSize);
       }
     }
 

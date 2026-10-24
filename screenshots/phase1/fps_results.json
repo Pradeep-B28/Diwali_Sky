@@ -1,0 +1,22 @@
+{
+  "highFps": {
+    "avg": 59,
+    "min": 20,
+    "count": 458
+  },
+  "medFps": {
+    "avg": 58,
+    "min": 20,
+    "count": 454
+  },
+  "lowFps": {
+    "avg": 58,
+    "min": 30,
+    "count": 453
+  },
+  "medThrottledFps": {
+    "avg": 54,
+    "min": 12,
+    "count": 385
+  }
+}
