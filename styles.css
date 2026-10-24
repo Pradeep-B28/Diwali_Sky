@@ -49,6 +49,12 @@
   --diya-flame-1: #FBBF24;
   --diya-flame-2: #FCD34D;
 
+  --layer-far: #1E293B;
+  --layer-mid: #0F172A;
+  --layer-near: #020617;
+  --mist: rgba(203, 213, 225, 0.06);
+  --dim-layer: rgba(2, 6, 23, 0.6);
+
   --ease: cubic-bezier(0.4, 0, 0.2, 1);
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
 }

@@ -103,7 +103,12 @@ class DiwaliSkyApp {
       this.playShow(this.queryName || 'Priya', this.querySender || 'Vivek');
       const stepDt = 1 / 60;
       while (this.show.currentTime < this.freezeTime) {
-        this.skyManager.updateAndDraw(stepDt);
+        const isHold = this.show.isActive && this.show.currentTime >= 4.6 && this.show.currentTime < 9.5;
+        const nameBounds = (this.show.isActive && this.show.nameData) ? this.show.nameData.bounds : null;
+        if (this.show.isActive) {
+          this.skyManager.setCameraPush(this.show.currentTime, this.show.heroTargetX, this.show.heroTargetY);
+        }
+        this.skyManager.updateAndDraw(stepDt, isHold, nameBounds);
         this.fireworks.update(stepDt);
         this.particlePool.update(stepDt);
         this.show.update(stepDt);
@@ -116,13 +121,13 @@ class DiwaliSkyApp {
 
       // Update debug HUD values for frozen frame
       if (this.debugHud) {
-        if (this.debugFps) this.debugFps.textContent = `FPS: 60`;
-        if (this.debugParticles) {
+        if (this.debugFpsEl) this.debugFpsEl.textContent = `FPS: 60`;
+        if (this.debugParticlesEl) {
           const totalParticles = this.particlePool.getActiveCount() + (this.show.isActive ? this.show.sparkCount : 0);
-          this.debugParticles.textContent = `Particles: ${totalParticles}`;
+          this.debugParticlesEl.textContent = `Particles: ${totalParticles}`;
         }
-        if (this.debugRockets) {
-          this.debugRockets.textContent = `Rockets: ${this.fireworks.getRocketCount()}`;
+        if (this.debugRocketsEl) {
+          this.debugRocketsEl.textContent = `Rockets: ${this.fireworks.getRocketCount()}`;
         }
       }
     } else if (this.isDemoMode) {
@@ -157,7 +162,12 @@ class DiwaliSkyApp {
       const fixedDt = 1 / 60;
       const count = Math.max(1, Math.round(seconds / fixedDt));
       for (let i = 0; i < count; i++) {
-        this.skyManager.updateAndDraw(fixedDt);
+        const isHold = this.show.isActive && this.show.currentTime >= 4.6 && this.show.currentTime < 9.5;
+        const nameBounds = (this.show.isActive && this.show.nameData) ? this.show.nameData.bounds : null;
+        if (this.show.isActive) {
+          this.skyManager.setCameraPush(this.show.currentTime, this.show.heroTargetX, this.show.heroTargetY);
+        }
+        this.skyManager.updateAndDraw(fixedDt, isHold, nameBounds);
         this.fireworks.update(fixedDt);
         this.particlePool.update(fixedDt);
         this.show.update(fixedDt);
@@ -173,15 +183,24 @@ class DiwaliSkyApp {
   setQualityTier(tier) {
     this.qualityTier = tier;
     if (this.particlePool) this.particlePool.setQualityTier(tier);
-    if (this.skyManager) this.skyManager.setBloomEnabled(tier === 'high');
+    if (this.skyManager) this.skyManager.setQualityTier(tier);
   }
 
   wireAudioCallbacks() {
     this.fireworks.onLaunch = () => this.sound.playLaunch();
-    this.fireworks.onBurst = (type) => this.sound.playBurst(type);
+    this.fireworks.onBurst = (type, x, y, colors) => {
+      this.sound.playBurst(type);
+      if (x !== undefined && y !== undefined) {
+        const colId = (colors && colors[0] !== undefined) ? colors[0] : 0;
+        this.skyManager.addBurstLight(x, y, colId);
+      }
+    };
     this.fireworks.onCrackle = () => this.sound.playCrackle();
 
-    this.show.onHeroBoom = () => this.sound.playBurst('peony');
+    this.show.onHeroBoom = () => {
+      this.sound.playBurst('peony');
+      this.skyManager.addBurstLight(this.show.heroTargetX, this.show.heroTargetY, 0);
+    };
     this.show.onNameArrival = () => this.sound.playNameArrival();
     this.show.onMeltBegin = () => {
       if (this.isReceiverFlow) {
@@ -214,6 +233,7 @@ class DiwaliSkyApp {
     this.particlePool.setReducedMotion(isReduced);
     this.fireworks.setReducedMotion(isReduced);
     this.show.setReducedMotion(isReduced);
+    if (this.skyManager) this.skyManager.setReducedMotion(isReduced);
   }
 
   playShow(name = 'Priya', sender = 'Vivek', greeting = 'Happy Diwali') {
@@ -363,8 +383,17 @@ class DiwaliSkyApp {
         }
       }
 
-      // Update and draw background sky, stars, and diyas
-      this.skyManager.updateAndDraw(dt);
+      // Camera push and name hold status
+      const isHold = this.show.isActive && this.show.currentTime >= 4.6 && this.show.currentTime < 9.5;
+      const nameBounds = (this.show.isActive && this.show.nameData) ? this.show.nameData.bounds : null;
+      if (this.show.isActive) {
+        this.skyManager.setCameraPush(this.show.currentTime, this.show.heroTargetX, this.show.heroTargetY);
+      } else {
+        this.skyManager.setCameraPush(0, this.skyManager.width * 0.5, this.skyManager.height * 0.38);
+      }
+
+      // Update and draw background sky, depth layers, lanterns, and diyas
+      this.skyManager.updateAndDraw(dt, isHold, nameBounds);
 
       // Update fireworks rockets, particles, and show timeline
       this.fireworks.update(dt);

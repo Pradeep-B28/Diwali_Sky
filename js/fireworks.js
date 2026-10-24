@@ -237,7 +237,7 @@ export class FireworksEngine {
     }
 
     if (this.onBurst) {
-      this.onBurst(burstType, x, y);
+      this.onBurst(burstType, x, y, colors);
     }
 
     // Nice to have: Haptic vibration on bursts where supported

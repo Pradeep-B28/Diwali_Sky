@@ -172,6 +172,7 @@ export class ParticlePool {
     ctx.globalCompositeOperation = 'lighter';
 
     const streakDt = Math.min(dt, 0.035);
+    let lastAlpha = -1;
 
     for (let i = 0; i < this.activeCount; i++) {
       const idx = this.activeIndices[i];
@@ -198,6 +199,7 @@ export class ParticlePool {
       const vx = this.vx[idx];
       const vy = this.vy[idx];
       const pType = this.type[idx];
+      const speedSq = vx * vx + vy * vy;
 
       const isLowTier = this.qualityTier === 'low';
 
@@ -206,7 +208,6 @@ export class ParticlePool {
         const aBin = Math.min(ALPHA_BINS, Math.max(0, Math.floor(alpha * ALPHA_BINS)));
         const colorStr = COLOR_ALPHA_LUT[cId][aBin];
 
-        const speedSq = vx * vx + vy * vy;
         if (speedSq > 900 && pType !== PARTICLE_TYPES.CRACKLE_POP) {
           const streakFactor = pType === PARTICLE_TYPES.WILLOW ? 0.7 : 0.45;
           const prevX = px - vx * streakDt * streakFactor;
@@ -246,7 +247,11 @@ export class ParticlePool {
           ctx.stroke();
         }
 
-        ctx.globalAlpha = alpha;
+        const aQuant = Math.round(alpha * 12) / 12;
+        if (aQuant !== lastAlpha) {
+          ctx.globalAlpha = aQuant;
+          lastAlpha = aQuant;
+        }
         ctx.drawImage(sprite, px - halfDraw, py - halfDraw, drawSize, drawSize);
       }
     }
