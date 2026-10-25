@@ -283,4 +283,51 @@ export class SoundManager {
       this.endVoice();
     }, duration * 1000 + 150);
   }
+
+  /**
+   * Single temple bell ring (Web Audio: sine tones at ratios 1, 2.76, 5.4, 8.9 fading over 2.5s, quiet).
+   */
+  playTempleBell() {
+    if (this.isMuted || !this.ctx) return;
+    if (!this.startVoice()) return;
+
+    const now = this.ctx.currentTime;
+    const baseFreq = 480;
+    const ratios = [1, 2.76, 5.4, 8.9];
+    const duration = 2.5;
+    const relativeGains = [0.12, 0.07, 0.035, 0.015];
+
+    let activeCount = ratios.length;
+    const onPartEnd = () => {
+      activeCount--;
+      if (activeCount === 0) {
+        this.endVoice();
+      }
+    };
+
+    for (let i = 0; i < ratios.length; i++) {
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(baseFreq * ratios[i], now);
+
+      const g0 = relativeGains[i];
+      gain.gain.setValueAtTime(g0, now);
+      const decayTime = duration / (1 + i * 0.35);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + decayTime);
+
+      osc.connect(gain);
+      gain.connect(this.compressor);
+
+      osc.start(now);
+      osc.stop(now + decayTime);
+
+      osc.onended = () => {
+        osc.disconnect();
+        gain.disconnect();
+        onPartEnd();
+      };
+    }
+  }
 }

@@ -255,3 +255,107 @@ export function drawDiyas(ctx, diyas, frontShift, time) {
   }
   ctx.restore();
 }
+
+export function drawCityWindows(ctx, windows, layerWidth, farShift, time, rippleProgress = 1.0) {
+  if (!windows || windows.length === 0 || rippleProgress <= 0.001) return;
+  ctx.save();
+  ctx.fillStyle = SCENE_COLORS.sparkGold;
+  for (let i = 0; i < windows.length; i++) {
+    const w = windows[i];
+    if (w.x / layerWidth > rippleProgress) continue;
+    const isDark = Math.sin(time * 0.35 + w.phase) < -0.78;
+    const flicker = isDark ? 0.08 : (0.80 + 0.20 * Math.sin(time * w.flickerSpeed + w.phase));
+    const alpha = w.baseAlpha * flicker;
+    if (alpha > 0.02) {
+      ctx.globalAlpha = alpha;
+      ctx.fillRect(-20 + farShift + w.x, w.y, 1.8, 1.8);
+    }
+  }
+  ctx.restore();
+}
+
+export function drawGopuramLights(ctx, midGopuram, midShift, time, tierProgress = 1.0) {
+  if (!midGopuram || tierProgress <= 0.001) return;
+  const { festivalLights, catenaryLights, baseY, topY } = midGopuram;
+  const towerH = Math.max(1, baseY - topY + 12);
+  ctx.save();
+  if (festivalLights && festivalLights.length > 0) {
+    ctx.fillStyle = SCENE_COLORS.sparkGold;
+    for (let i = 0; i < festivalLights.length; i++) {
+      const fl = festivalLights[i];
+      if ((baseY - fl.y) / towerH > tierProgress * 1.12) continue;
+      ctx.globalAlpha = 0.65 + 0.35 * Math.sin(time * 3.5 + fl.phase);
+      const sz = fl.isApex ? 3 : 2;
+      ctx.fillRect(-20 + midShift + fl.x - 1, fl.y - 1, sz, sz);
+    }
+  }
+  if (catenaryLights && catenaryLights.length > 0 && tierProgress >= 0.60) {
+    const catAlpha = Math.min(1.0, (tierProgress - 0.60) / 0.35);
+    for (let i = 0; i < catenaryLights.length; i++) {
+      const cl = catenaryLights[i];
+      ctx.fillStyle = cl.colorHex;
+      ctx.globalAlpha = catAlpha * (0.70 + 0.30 * Math.sin(time * 2.8 + cl.phase));
+      ctx.fillRect(-20 + midShift + cl.x - 1, cl.y - 1, 2, 2);
+    }
+  }
+  ctx.restore();
+}
+
+export function drawLivePreview(ctx, previewName, width, height, time) {
+  if (!previewName || !previewName.trim()) return;
+  const clean = previewName.trim();
+  const fontStack = 'ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
+  const isPortrait = width < height;
+  const isPhone = width < 600;
+  let lines = [clean];
+  if (isPortrait && clean.includes(' ')) {
+    const parts = clean.split(/\s+/);
+    if (parts.length >= 2) {
+      const mid = Math.ceil(parts.length / 2);
+      lines = [parts.slice(0, mid).join(' '), parts.slice(mid).join(' ')];
+    }
+  }
+  const maxAllowedW = width * 0.82;
+  const targetY = height * 0.38;
+  const baseSize = isPhone ? 48 : 72;
+  ctx.save();
+  ctx.font = `800 ${baseSize}px ${fontStack}`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.letterSpacing = '-0.01em';
+  let measuredW = 0;
+  for (let l = 0; l < lines.length; l++) {
+    measuredW = Math.max(measuredW, ctx.measureText(lines[l]).width);
+  }
+  const scale = measuredW > maxAllowedW ? (maxAllowedW / measuredW) : 1.0;
+  const fontSize = Math.floor(baseSize * scale);
+  ctx.font = `800 ${fontSize}px ${fontStack}`;
+  const minX = width * 0.5 - (measuredW * scale) * 0.5;
+  const maxX = width * 0.5 + (measuredW * scale) * 0.5;
+  const grad = ctx.createLinearGradient(minX, 0, maxX, 0);
+  grad.addColorStop(0.0, '#34D399');
+  grad.addColorStop(0.5, '#2DD4BF');
+  grad.addColorStop(1.0, '#22D3EE');
+  const lineH = fontSize * 1.15;
+  const totalH = lines.length * lineH;
+  const startY = targetY - (totalH * 0.5) + (lineH * 0.5);
+  ctx.fillStyle = grad;
+  ctx.globalAlpha = 0.18;
+  for (let l = 0; l < lines.length; l++) {
+    ctx.fillText(lines[l], width * 0.5, startY + l * lineH);
+  }
+  const sparkColors = ['#FCD34D', '#22D3EE', '#34D399', '#A7F3D0'];
+  const sparkCount = Math.min(18, Math.max(8, clean.length * 2));
+  for (let i = 0; i < sparkCount; i++) {
+    const u = (i + 0.5) / sparkCount;
+    const sx = minX + (maxX - minX) * u + Math.sin(i * 3.7) * 8;
+    const sy = startY + Math.cos(i * 2.3) * (fontSize * 0.35);
+    const twinkle = 0.25 + 0.65 * Math.max(0, Math.sin(time * 4.2 + i * 1.3));
+    ctx.fillStyle = sparkColors[i % sparkColors.length];
+    ctx.globalAlpha = twinkle * 0.70;
+    ctx.beginPath();
+    ctx.arc(sx, sy, 1.5, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+}

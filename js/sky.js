@@ -44,6 +44,18 @@ export class SkyManager {
     this.scene.setReducedMotion(enabled);
   }
 
+  setReceiverDimmed(isDimmed) {
+    this.scene.setReceiverDimmed(isDimmed);
+  }
+
+  startReceiverLightUp(onComplete) {
+    this.scene.startReceiverLightUp(onComplete);
+  }
+
+  setLivePreviewName(name) {
+    this.scene.setLivePreviewName(name);
+  }
+
   addBurstLight(x, y, colorId) {
     this.scene.addBurstLight(x, y, colorId);
   }

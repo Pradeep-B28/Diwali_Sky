@@ -17,7 +17,10 @@ import {
   drawSkyAtmosphere,
   drawLanterns,
   drawBurstLighting,
-  drawDiyas
+  drawDiyas,
+  drawCityWindows,
+  drawGopuramLights,
+  drawLivePreview
 } from './sceneRenderers.js';
 
 export class SceneManager {
@@ -64,8 +67,37 @@ export class SceneManager {
     this.cachedSkyCanvas = document.createElement('canvas');
     this.cachedSkyCtx = this.cachedSkyCanvas.getContext('2d');
 
+    // Receiver screen dimming & light-up state
+    this.isReceiverDimmed = false;
+    this.receiverLightUpProgress = 1.0;
+    this.isLightingUp = false;
+    this.lightUpDuration = 1.5;
+    this.lightUpTimer = 0;
+    this.onLightUpComplete = null;
+
+    // Live preview name while typing
+    this.livePreviewName = null;
+
     this.initEventListeners();
     this.resize();
+  }
+
+  setReceiverDimmed(isDimmed) {
+    this.isReceiverDimmed = !!isDimmed;
+    this.receiverLightUpProgress = this.isReceiverDimmed ? 0.0 : 1.0;
+    this.isLightingUp = false;
+  }
+
+  startReceiverLightUp(onComplete) {
+    this.isReceiverDimmed = true;
+    this.isLightingUp = true;
+    this.receiverLightUpProgress = 0.0;
+    this.lightUpTimer = 0;
+    this.onLightUpComplete = onComplete;
+  }
+
+  setLivePreviewName(name) {
+    this.livePreviewName = (name && name.trim().length > 0) ? name.trim() : null;
   }
 
   setQualityTier(tier) {
@@ -200,6 +232,20 @@ export class SceneManager {
   update(dt) {
     this.time += dt;
 
+    if (this.isLightingUp) {
+      this.lightUpTimer += dt;
+      this.receiverLightUpProgress = Math.min(1.0, this.lightUpTimer / this.lightUpDuration);
+      if (this.receiverLightUpProgress >= 1.0) {
+        this.isReceiverDimmed = false;
+        this.isLightingUp = false;
+        if (this.onLightUpComplete) {
+          const cb = this.onLightUpComplete;
+          this.onLightUpComplete = null;
+          cb();
+        }
+      }
+    }
+
     this.autoDriftTimer += dt * 0.4;
     const drift = Math.sin(this.autoDriftTimer) * 0.4;
     const target = this.targetShiftX !== 0 ? this.targetShiftX : drift;
@@ -235,12 +281,15 @@ export class SceneManager {
       this.mistOffsets[m] = (this.mistOffsets[m] + (6 + m * 2) * dt) % (this.width + 120);
     }
 
-    for (let i = 0; i < this.lanterns.length; i++) {
-      const l = this.lanterns[i];
-      l.y -= l.speedY * dt;
-      l.phase += l.swaySpeed * dt;
-      if (l.y < -30) {
-        this.lanterns[i] = createLanternItem(this.width, this.height, this.isReducedMotion, false);
+    const allowLanterns = !this.isReceiverDimmed || this.isLightingUp;
+    if (allowLanterns) {
+      for (let i = 0; i < this.lanterns.length; i++) {
+        const l = this.lanterns[i];
+        l.y -= l.speedY * dt;
+        l.phase += l.swaySpeed * dt;
+        if (l.y < -30) {
+          this.lanterns[i] = createLanternItem(this.width, this.height, this.isReducedMotion, false);
+        }
       }
     }
 
@@ -271,16 +320,18 @@ export class SceneManager {
     ctx.drawImage(this.cachedSkyCanvas, 0, 0, this.width, this.height);
     drawSkyAtmosphere(ctx, this, this.time);
 
-    // 2. Far Layer: Distant City (Parallax max 4px)
+    // 2. Far Layer: Distant City (Parallax max 4px) & Windows
     const farShift = this.currentShiftX * 4;
     if (this.farCity) {
       ctx.drawImage(this.farCity.canvas, -20 + farShift, 0, this.width + 40, this.height);
+      drawCityWindows(ctx, this.farCity.windows, this.farCity.layerWidth, farShift, this.time, this.receiverLightUpProgress);
     }
 
-    // 3. Mid Layer: Gopuram & Houses (Parallax max 10px)
+    // 3. Mid Layer: Gopuram & Houses (Parallax max 10px) & Festival Lights
     const midShift = this.currentShiftX * 10;
     if (this.midGopuram) {
       ctx.drawImage(this.midGopuram.canvas, -20 + midShift, 0, this.width + 40, this.height);
+      drawGopuramLights(ctx, this.midGopuram, midShift, this.time, this.receiverLightUpProgress);
     }
 
     // 4. Mist Bands (lower third)
@@ -303,13 +354,29 @@ export class SceneManager {
       drawBurstLighting(ctx, this.activeLights, this.width, this.midGopuram, midShift);
     }
 
-    // 7. Front Layer: Rooftop Ledge (Parallax max 18px)
+    // 7. Live Preview (18% brand gradient in sky while typing)
+    if (this.livePreviewName && !isNameHoldActive) {
+      drawLivePreview(ctx, this.livePreviewName, this.width, this.height, this.time);
+    }
+
+    // 8. Dim layer for receiver screen (60% strength fading over 1.5s on tap)
+    if (this.isReceiverDimmed) {
+      const dimAlpha = 0.60 * (1.0 - this.receiverLightUpProgress);
+      if (dimAlpha > 0.005) {
+        ctx.save();
+        ctx.fillStyle = `rgba(2, 6, 23, ${dimAlpha.toFixed(3)})`;
+        ctx.fillRect(0, 0, this.width, this.height);
+        ctx.restore();
+      }
+    }
+
+    // 9. Front Layer: Rooftop Ledge (Parallax max 18px)
     const frontShift = this.currentShiftX * 18;
     if (this.frontLedge) {
       ctx.drawImage(this.frontLedge.canvas, -20 + frontShift, 0, this.width + 40, this.height);
     }
 
-    // 8. Clay Diyas (1.4x larger) & Embers
+    // 10. Clay Diyas (1.4x larger) & Embers
     drawDiyas(ctx, this.diyas, frontShift, this.time);
 
     if (this.embers.length > 0) {

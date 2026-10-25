@@ -72,14 +72,14 @@ export class FireworksEngine {
     }
   }
 
-  launch(targetX, targetY, burstType = null, colorOverride = null) {
+  launch(targetX, targetY, burstType = null, colorOverride = null, startOrigin = null) {
     // Maximum 6 rockets in the air at once
     if (this.rockets.length >= 6) {
       return false;
     }
 
-    const startX = targetX + (Math.random() - 0.5) * 60;
-    const startY = window.innerHeight + 8;
+    const startX = startOrigin ? startOrigin.x : (targetX + (Math.random() - 0.5) * 60);
+    const startY = startOrigin ? startOrigin.y : (window.innerHeight + 8);
 
     const chosenType = burstType || ['peony', 'ring', 'willow', 'crackle'][Math.floor(Math.random() * 4)];
     const colors = colorOverride || this.pickColorsForBurst(chosenType);

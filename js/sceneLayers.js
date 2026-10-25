@@ -71,16 +71,7 @@ export function createFarCityCanvas(width, height, dpr) {
   ctx.closePath();
   ctx.fill();
 
-  // Pre-render lit windows onto the canvas
-  ctx.fillStyle = SCENE_COLORS.sparkGold;
-  for (let i = 0; i < windows.length; i++) {
-    const w = windows[i];
-    ctx.globalAlpha = w.baseAlpha;
-    ctx.fillRect(w.x, w.y, 1.8, 1.8);
-  }
-  ctx.globalAlpha = 1.0;
-
-  return { canvas, windows, layerWidth };
+  return { canvas, windows, layerWidth, baseY };
 }
 
 /**
@@ -270,24 +261,7 @@ export function createMidGopuramCanvas(width, height, dpr) {
     }
   }
 
-  // Pre-render festival lights onto gopuram canvas
-  ctx.fillStyle = SCENE_COLORS.sparkGold;
-  ctx.globalAlpha = 0.85;
-  for (let i = 0; i < festivalLights.length; i++) {
-    const fl = festivalLights[i];
-    ctx.fillRect(fl.x - 1, fl.y - 1, fl.isApex ? 3 : 2, fl.isApex ? 3 : 2);
-  }
-
-  // Pre-render catenary lights linking rooftops
-  for (let i = 0; i < catenaryLights.length; i++) {
-    const cl = catenaryLights[i];
-    ctx.fillStyle = cl.colorHex;
-    ctx.globalAlpha = 0.90;
-    ctx.fillRect(cl.x - 1, cl.y - 1, 2, 2);
-  }
-  ctx.globalAlpha = 1.0;
-
-  return { canvas, festivalLights, catenaryLights, rimPoints, layerWidth };
+  return { canvas, festivalLights, catenaryLights, rimPoints, layerWidth, baseY, topY };
 }
 
 /**

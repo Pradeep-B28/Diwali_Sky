@@ -140,6 +140,7 @@ export class DemoManager {
         const typeNextChar = () => {
           if (index < text.length) {
             recipientInput.value = text.slice(0, index + 1);
+            recipientInput.dispatchEvent(new Event('input', { bubbles: true }));
             index++;
             this.setTimeout(typeNextChar, 145);
           } else {

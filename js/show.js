@@ -46,17 +46,19 @@ export class ShowTimeline {
 
     this.onHeroBoom = null;
     this.onNameArrival = null;
+    this.onCaptureStill = null;
     this.onMeltBegin = null;
     this.onComplete = null;
     this.hasTriggeredNameSound = false;
     this.hasTriggeredMeltCallback = false;
+    this.hasCapturedStill = false;
   }
 
   setReducedMotion(enabled) {
     this.isReducedMotion = enabled;
   }
 
-  start(name = 'Priya', senderName = 'Vivek', greeting = 'Happy Diwali') {
+  start(name = 'Priya', senderName = 'Vivek', greeting = 'Happy Diwali', startRocketFromButton = false) {
     this.name = name || 'Priya';
     this.senderName = senderName || '';
     const lower = (greeting || '').toLowerCase().trim();
@@ -85,7 +87,7 @@ export class ShowTimeline {
     this.generateNameAura();
     this.currentTime = 0;
     this.isActive = true;
-    this.launchedRocket1 = false;
+    this.launchedRocket1 = !!startRocketFromButton;
     this.launchedRocket2 = false;
     this.launchedRocket3 = false;
     this.launchedRocket4 = false;
@@ -95,6 +97,7 @@ export class ShowTimeline {
     this.hasPushedMelt = false;
     this.hasTriggeredNameSound = false;
     this.hasTriggeredMeltCallback = false;
+    this.hasCapturedStill = false;
   }
 
   generateNameAura() {
@@ -218,6 +221,10 @@ export class ShowTimeline {
       if (t >= 4.10 && !this.hasTriggeredNameSound) {
         this.hasTriggeredNameSound = true;
         if (this.onNameArrival) this.onNameArrival();
+      }
+      if (t >= 7.75 && !this.hasCapturedStill) {
+        this.hasCapturedStill = true;
+        if (this.onCaptureStill) this.onCaptureStill();
       }
       this.updateFormation(dt, t);
     }
