@@ -15,9 +15,10 @@ Neither script uses emojis. Neither script uses em dashes.
 ### Timeline and Shot List
 
 #### 0.0 to 2.0 seconds: The Hook
-- **Visual:** The deep navy night sky with flickering diyas and twinkling stars.
-- **On-screen text:** What happens when you write a name in fireworks?
-- **Voiceover (optional):** What happens when you write someone's name in fireworks?
+- **Visual:** The screen opens in near-darkness with the scene dimmed to 10 percent brightness. A resonant bronze temple bell chimes. Over 1.5 seconds, the scene illuminates smoothly: clay diyas flare with warm amber halos along the rooftop ledge, the temple gopuram and illuminated skyline appear, and warm paper lanterns drift skyward through the mist.
+- **Audio:** Synthesized bronze temple bell chime followed by ambient night sparkle.
+- **On-screen text:** A private Diwali surprise opens in the dark.
+- **Voiceover (optional):** When you open the private link, the night sky awakens as a temple bell chimes.
 
 #### 2.0 to 5.0 seconds: The Input
 - **Visual:** The white card shows. A glowing tap dot lands on "Their name", types "Priya", and taps "Light it up".
@@ -65,9 +66,10 @@ Neither script uses emojis. Neither script uses em dashes.
 ### Timeline and Shot List
 
 #### 0.0 to 4.0 seconds: The Hook
-- **Visual:** Opening wide shot of the dark sky, horizon glow, and flickering oil lamps.
-- **On-screen text:** We built a firework name writer with zero libraries.
-- **Voiceover (optional):** We built a web app that writes any name in fireworks using plain code.
+- **Visual:** Opening wide shot in near-darkness. A rich bronze temple bell tolls. As the tone reverberates, the receiver scene lights up smoothly from 10 percent brightness to full illumination: clay diyas flare with warm halos along the front parapet, the detailed temple gopuram and distant city windows emerge, and rising paper lanterns float skyward through soft mist bands.
+- **Audio:** Synthesized bronze temple bell with rich metallic overtones and decay, transitioning into subtle festival ambiance.
+- **On-screen text:** The receiver scene lights up as a temple bell chimes.
+- **Voiceover (optional):** When a recipient opens their private link, the dark sky slowly awakens as a temple bell chimes.
 
 #### 4.0 to 10.0 seconds: The Setup
 - **Visual:** The white card shows. The demo dot types "Priya" into the input and taps "Light it up".
