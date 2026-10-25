@@ -6,3 +6,5 @@ Thumbs.db
 # Temp & build
 node_modules/
 .system_generated/
+
+.vercel
