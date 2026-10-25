@@ -29,6 +29,9 @@ export class ShowTimeline {
     this.isGlint = new Uint8Array(this.maxCapacity);
     this.size = new Float32Array(this.maxCapacity);
     this.arrivalTime = new Float32Array(this.maxCapacity);
+    this.drawSize = new Float32Array(this.maxCapacity);
+    this.halfDraw = new Float32Array(this.maxCapacity);
+    this.baseSprite = new Array(this.maxCapacity);
 
     this.isActive = false;
     this.currentTime = 0;
@@ -52,6 +55,7 @@ export class ShowTimeline {
     this.hasTriggeredNameSound = false;
     this.hasTriggeredMeltCallback = false;
     this.hasCapturedStill = false;
+    this.hasBakedHoldCanvas = false;
   }
 
   setReducedMotion(enabled) {
@@ -77,7 +81,10 @@ export class ShowTimeline {
       this.colorId[i] = p.colorId;
       this.isGlint[i] = p.isGlint ? 1 : 0;
       this.size[i] = p.size;
-      this.arrivalTime[i] = 4.1 + p.u * 1.6;
+      this.drawSize[i] = p.size * 3.0;
+      this.halfDraw[i] = p.size * 1.5;
+      this.baseSprite[i] = p.isGlint ? GLINT_SPRITE : getNameGradientSprite(p.u);
+      this.arrivalTime[i] = 4.05 + p.u * 1.15;
       this.x[i] = this.heroTargetX;
       this.y[i] = this.heroTargetY;
       this.vx[i] = 0;
@@ -85,6 +92,7 @@ export class ShowTimeline {
     }
 
     this.generateNameAura();
+    this.generateTextOverlay();
     this.currentTime = 0;
     this.isActive = true;
     this.launchedRocket1 = !!startRocketFromButton;
@@ -98,12 +106,22 @@ export class ShowTimeline {
     this.hasTriggeredNameSound = false;
     this.hasTriggeredMeltCallback = false;
     this.hasCapturedStill = false;
+    this.hasBakedHoldCanvas = false;
   }
 
   generateNameAura() {
     if (!this.nameData) return;
-    const qw = Math.max(1, Math.floor(this.sky.width / 4));
-    const qh = Math.max(1, Math.floor(this.sky.height / 4));
+    const pad = 24;
+    const b = this.nameData.bounds;
+    const ax = Math.max(0, b.minX - pad);
+    const ay = Math.max(0, b.minY - pad);
+    const aw = Math.min(this.sky.width - ax, (b.maxX - b.minX) + pad * 2);
+    const ah = Math.min(this.sky.height - ay, (b.maxY - b.minY) + pad * 2);
+
+    this.auraBounds = { x: ax, y: ay, w: aw, h: ah };
+
+    const qw = Math.max(2, Math.floor(aw / 4));
+    const qh = Math.max(2, Math.floor(ah / 4));
     if (!this.auraCanvas) this.auraCanvas = document.createElement('canvas');
     this.auraCanvas.width = qw;
     this.auraCanvas.height = qh;
@@ -116,8 +134,8 @@ export class ShowTimeline {
     actx.textAlign = 'center';
     actx.textBaseline = 'middle';
 
-    const minX = this.nameData.bounds.minX * scale;
-    const maxX = this.nameData.bounds.maxX * scale;
+    const minX = (b.minX - ax) * scale;
+    const maxX = (b.maxX - ax) * scale;
     const grad = actx.createLinearGradient(minX, 0, maxX, 0);
     grad.addColorStop(0.0, '#34D399');
     grad.addColorStop(0.5, '#2DD4BF');
@@ -126,15 +144,15 @@ export class ShowTimeline {
 
     const qLineH = this.nameData.lineHeight * scale;
     const qTotalH = this.nameData.lines.length * qLineH;
-    const qStartY = (this.sky.height * 0.38 * scale) - (qTotalH * 0.5) + (qLineH * 0.5);
+    const qStartY = ((b.centerY - ay) * scale) - (qTotalH * 0.5) + (qLineH * 0.5);
 
     for (let l = 0; l < this.nameData.lines.length; l++) {
-      actx.fillText(this.nameData.lines[l], qw * 0.5, qStartY + l * qLineH);
+      actx.fillText(this.nameData.lines[l], (b.centerX - ax) * scale, qStartY + l * qLineH);
     }
 
-    // Downscale to 1/8 and upscale back with smoothing
-    const smallW = Math.max(2, Math.floor(qw / 8));
-    const smallH = Math.max(2, Math.floor(qh / 8));
+    // Downscale and upscale with smoothing
+    const smallW = Math.max(2, Math.floor(qw / 4));
+    const smallH = Math.max(2, Math.floor(qh / 4));
     const smallCanvas = document.createElement('canvas');
     smallCanvas.width = smallW;
     smallCanvas.height = smallH;
@@ -144,11 +162,6 @@ export class ShowTimeline {
     smallCtx.drawImage(this.auraCanvas, 0, 0, smallW, smallH);
     actx.clearRect(0, 0, qw, qh);
     actx.imageSmoothingEnabled = true;
-    actx.drawImage(smallCanvas, 0, 0, qw, qh);
-
-    smallCtx.clearRect(0, 0, smallW, smallH);
-    smallCtx.drawImage(this.auraCanvas, 0, 0, smallW, smallH);
-    actx.clearRect(0, 0, qw, qh);
     actx.drawImage(smallCanvas, 0, 0, qw, qh);
   }
 
@@ -183,26 +196,18 @@ export class ShowTimeline {
     this.currentTime += dt;
     const t = this.currentTime;
 
-    // Step 1: 0.0 to 2.4 s - 5 opening rockets spread across the sky
-    if (t >= 0.30 && !this.launchedRocket1) {
+    // Step 1: 0.0 to 2.4 s - 3 opening rockets spread across the sky (Section 4C)
+    if (t >= 0.25 && !this.launchedRocket1) {
       this.launchedRocket1 = true;
-      this.fireworks.launch(this.sky.width * 0.22, this.sky.height * 0.28, 'peony');
+      this.fireworks.launch(this.sky.width * 0.26, this.sky.height * 0.28, 'peony');
     }
-    if (t >= 0.75 && !this.launchedRocket2) {
+    if (t >= 0.95 && !this.launchedRocket2) {
       this.launchedRocket2 = true;
-      this.fireworks.launch(this.sky.width * 0.78, this.sky.height * 0.26, 'ring');
+      this.fireworks.launch(this.sky.width * 0.74, this.sky.height * 0.26, 'ring');
     }
-    if (t >= 1.25 && !this.launchedRocket3) {
+    if (t >= 1.70 && !this.launchedRocket3) {
       this.launchedRocket3 = true;
-      this.fireworks.launch(this.sky.width * 0.36, this.sky.height * 0.34, 'willow');
-    }
-    if (t >= 1.75 && !this.launchedRocket4) {
-      this.launchedRocket4 = true;
-      this.fireworks.launch(this.sky.width * 0.65, this.sky.height * 0.24, 'crackle');
-    }
-    if (t >= 2.20 && !this.launchedRocket5) {
-      this.launchedRocket5 = true;
-      this.fireworks.launch(this.sky.width * 0.50, this.sky.height * 0.32, 'peony');
+      this.fireworks.launch(this.sky.width * 0.48, this.sky.height * 0.33, 'willow');
     }
 
     // Step 2: 2.5 to 3.5 s - Emerald hero rocket rises
@@ -253,10 +258,11 @@ export class ShowTimeline {
   }
 
   updateFormation(dt, t) {
-    if (this.isReducedMotion) return;
+    if (this.isReducedMotion || t >= 6.0) return;
     const timeRatio = dt * 60;
     const blastDamping = Math.pow(0.94, timeRatio);
     const homingDamping = Math.pow(0.85, timeRatio);
+    const timeFloor12 = Math.floor(t * 12);
 
     for (let i = 0; i < this.sparkCount; i++) {
       const arrT = this.arrivalTime[i];
@@ -276,12 +282,9 @@ export class ShowTimeline {
         this.vy[i] *= homingDamping;
         this.x[i] += this.vx[i] * dt;
         this.y[i] += this.vy[i] * dt;
-      } else {
-        const seed = (i * 17 + Math.floor(t * 12)) % 31;
-        const jitterX = (seed % 5 - 2) * 0.35;
-        const jitterY = ((seed * 7) % 5 - 2) * 0.35;
-        this.x[i] = this.targetX[i] + jitterX;
-        this.y[i] = this.targetY[i] + jitterY;
+      } else if (this.vx[i] !== 0 || this.vy[i] !== 0) {
+        this.x[i] = this.targetX[i];
+        this.y[i] = this.targetY[i];
         this.vx[i] = 0;
         this.vy[i] = 0;
       }
@@ -291,21 +294,42 @@ export class ShowTimeline {
   updateMelt(dt, t) {
     const timeRatio = dt * 60;
     const meltDamping = Math.pow(0.988, timeRatio);
-    const meltProgress = Math.min(1.0, (t - 9.50) / 3.2);
+    const grav = 160.0 * dt;
 
     for (let i = 0; i < this.sparkCount; i++) {
-      this.vy[i] += 160.0 * dt;
+      this.vy[i] += grav;
       this.vx[i] *= meltDamping;
       this.vy[i] *= meltDamping;
       this.x[i] += this.vx[i] * dt;
       this.y[i] += this.vy[i] * dt;
-
-      if (meltProgress > 0.15 && this.colorId[i] !== COLOR_IDS.gold) {
-        if (Math.random() < (0.05 + meltProgress * 0.20)) {
-          this.colorId[i] = COLOR_IDS.gold;
-        }
-      }
     }
+  }
+
+  bakeHoldCanvas() {
+    if (!this.nameData) return;
+    const pad = 12;
+    const b = this.nameData.bounds;
+    const bx = Math.max(0, Math.floor(b.minX - pad));
+    const by = Math.max(0, Math.floor(b.minY - pad));
+    const bw = Math.min(this.sky.width - bx, Math.ceil(b.maxX - b.minX + pad * 2));
+    const bh = Math.min(this.sky.height - by, Math.ceil(b.maxY - b.minY + pad * 2));
+    this.holdBounds = { x: bx, y: by, w: bw, h: bh };
+
+    if (!this.holdCanvas) this.holdCanvas = document.createElement('canvas');
+    this.holdCanvas.width = bw;
+    this.holdCanvas.height = bh;
+    const hctx = this.holdCanvas.getContext('2d');
+    hctx.clearRect(0, 0, bw, bh);
+
+    for (let i = 0; i < this.sparkCount; i++) {
+      const sprite = this.baseSprite[i];
+      const px = this.targetX[i] - bx;
+      const py = this.targetY[i] - by;
+      const sz = this.drawSize[i];
+      const h = this.halfDraw[i];
+      hctx.drawImage(sprite, px - h, py - h, sz, sz);
+    }
+    this.hasBakedHoldCanvas = true;
   }
 
   draw(ctx, dt) {
@@ -346,11 +370,11 @@ export class ShowTimeline {
         auraAlpha = Math.max(0.0, (1.0 - (t - 9.5) / 1.0) * 0.28);
       }
 
-      if (auraAlpha > 0.01) {
+      if (auraAlpha > 0.01 && this.auraBounds) {
         ctx.save();
         ctx.globalCompositeOperation = 'lighter';
         ctx.globalAlpha = auraAlpha;
-        ctx.drawImage(this.auraCanvas, 0, 0, this.sky.width, this.sky.height);
+        ctx.drawImage(this.auraCanvas, this.auraBounds.x, this.auraBounds.y, this.auraBounds.w, this.auraBounds.h);
         ctx.restore();
       }
     }
@@ -360,53 +384,73 @@ export class ShowTimeline {
     ctx.globalCompositeOperation = 'lighter';
     const isHold = t >= 6.0 && t < 9.50;
     const isMelt = t >= 9.50;
+    const timeFloor8 = Math.floor(t * 8);
+    const timeFloor14 = Math.floor(t * 14);
+    const meltProgress = isMelt ? Math.min(1.0, (t - 9.50) / 3.2) : 0;
+    const meltAlpha = isMelt ? Math.max(0.0, 1.0 - Math.pow(meltProgress, 1.7)) : 0;
+    const streakDt = Math.min(dt, 0.035) * 0.65;
+    let lastAlpha = -1;
 
-    for (let i = 0; i < this.sparkCount; i++) {
-      let alpha = 1.0;
-      if (this.isReducedMotion) {
-        if (t < 4.5) alpha = Math.min(1.0, (t - 3.6) / 0.9);
-        else if (isMelt) alpha = Math.max(0.0, 1.0 - (t - 9.5) / 3.0);
-      } else {
-        if (t < 4.05) alpha = 0.95;
-        else if (isHold) alpha = 0.90 + 0.10 * ((i + Math.floor(t * 8)) % 4 === 0 ? 0.4 : 1.0);
-        else if (isMelt) {
-          const meltProgress = Math.min(1.0, (t - 9.50) / 3.2);
-          alpha = Math.max(0.0, 1.0 - Math.pow(meltProgress, 1.7));
+    if (isMelt && meltAlpha > 0.05) {
+      ctx.lineCap = 'round';
+      ctx.lineWidth = 1.8;
+      ctx.strokeStyle = '#FCD34D';
+      ctx.globalAlpha = meltAlpha;
+      ctx.beginPath();
+      for (let i = 0; i < this.sparkCount; i++) {
+        if (this.vy[i] > 25 || Math.abs(this.vx[i]) > 10) {
+          const px = this.x[i];
+          const py = this.y[i];
+          ctx.moveTo(px - this.vx[i] * streakDt, py - this.vy[i] * streakDt);
+          ctx.lineTo(px, py);
         }
       }
-      if (alpha <= 0.02) continue;
+      ctx.stroke();
+    }
 
-      let sprite;
-      if (isMelt && this.colorId[i] === COLOR_IDS.gold) sprite = GLINT_SPRITE;
-      else if (this.isGlint[i] || ((i + Math.floor(t * 14)) % 10 === 0 && (isHold || isMelt))) sprite = GLINT_SPRITE;
-      else sprite = getNameGradientSprite(this.u[i]);
+    let batchAlpha = 1.0;
+    if (this.isReducedMotion) {
+      if (t < 4.5) batchAlpha = Math.min(1.0, (t - 3.6) / 0.9);
+      else if (isMelt) batchAlpha = Math.max(0.0, 1.0 - (t - 9.5) / 3.0);
+    } else {
+      if (isMelt) batchAlpha = meltAlpha;
+      else if (t < 4.05) batchAlpha = 0.95;
+    }
 
-      const curSize = this.size[i];
-      const px = this.x[i];
-      const py = this.y[i];
-      const vx = this.vx[i];
-      const vy = this.vy[i];
-      const drawSize = curSize * 3.0;
-      const halfDraw = drawSize * 0.5;
+    if (batchAlpha > 0.02) {
+      ctx.globalAlpha = batchAlpha;
+      if (isMelt) {
+        for (let i = 0; i < this.sparkCount; i++) {
+          const px = this.x[i];
+          const py = this.y[i];
+          const drawSize = this.drawSize[i];
+          const halfDraw = this.halfDraw[i];
+          ctx.drawImage(GLINT_SPRITE, px - halfDraw, py - halfDraw, drawSize, drawSize);
+        }
+      } else if (isHold) {
+        if (!this.hasBakedHoldCanvas) this.bakeHoldCanvas();
+        if (this.holdBounds) ctx.drawImage(this.holdCanvas, this.holdBounds.x, this.holdBounds.y);
 
-      if (isMelt && (vy > 25 || Math.abs(vx) > 10)) {
-        const streakFactor = 0.65;
-        const streakDt = Math.min(dt, 0.035);
-        const prevX = px - vx * streakDt * streakFactor;
-        const prevY = py - vy * streakDt * streakFactor;
-        ctx.save();
-        ctx.strokeStyle = this.colorId[i] === COLOR_IDS.gold ? `rgba(252, 211, 77, ${(alpha * 0.75).toFixed(2)})` : `rgba(52, 211, 153, ${(alpha * 0.75).toFixed(2)})`;
-        ctx.lineWidth = curSize * 1.1;
-        ctx.lineCap = 'round';
-        ctx.beginPath();
-        ctx.moveTo(prevX, prevY);
-        ctx.lineTo(px, py);
-        ctx.stroke();
-        ctx.restore();
+        // Twinkling glints (1 in 10 sparks)
+        for (let i = 0; i < this.sparkCount; i++) {
+          if ((i + timeFloor14) % 10 === 0) {
+            const px = this.targetX[i];
+            const py = this.targetY[i];
+            const drawSize = this.drawSize[i];
+            const halfDraw = this.halfDraw[i];
+            ctx.drawImage(GLINT_SPRITE, px - halfDraw, py - halfDraw, drawSize, drawSize);
+          }
+        }
+      } else {
+        for (let i = 0; i < this.sparkCount; i++) {
+          const sprite = (i + timeFloor14) % 10 === 0 ? GLINT_SPRITE : this.baseSprite[i];
+          const px = this.x[i];
+          const py = this.y[i];
+          const drawSize = this.drawSize[i];
+          const halfDraw = this.halfDraw[i];
+          ctx.drawImage(sprite, px - halfDraw, py - halfDraw, drawSize, drawSize);
+        }
       }
-
-      ctx.globalAlpha = alpha;
-      ctx.drawImage(sprite, px - halfDraw, py - halfDraw, drawSize, drawSize);
     }
     ctx.restore();
 
@@ -416,31 +460,77 @@ export class ShowTimeline {
     }
   }
 
-  drawTextOverlays(ctx, t) {
+  generateTextOverlay() {
+    if (!this.nameData) return;
+    const w = this.sky.width;
+    const h = this.sky.height;
     const fontStack = 'ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
-    const isPhone = this.sky.width < 600;
+    const isPhone = w < 600;
+
+    // Greeting overlay: tightly bounded
+    const gw = Math.min(w, isPhone ? 320 : 440);
+    const gh = isPhone ? 46 : 60;
+    if (!this.greetCanvas) this.greetCanvas = document.createElement('canvas');
+    this.greetCanvas.width = gw;
+    this.greetCanvas.height = gh;
+    const gctx = this.greetCanvas.getContext('2d');
+    gctx.clearRect(0, 0, gw, gh);
+    const greetSize = isPhone ? 20 : 28;
+    gctx.font = `800 ${greetSize}px ${fontStack}`;
+    gctx.textAlign = 'center';
+    gctx.textBaseline = 'middle';
+    gctx.letterSpacing = '-0.01em';
+    gctx.shadowColor = '#FCD34D';
+    gctx.shadowBlur = 10;
+    gctx.fillStyle = '#FCD34D';
+    gctx.fillText(this.greeting, gw * 0.5, gh * 0.5);
+
+    const greetCenterY = Math.max(48, this.nameData.bounds.minY - (isPhone ? 30 : 42));
+    this.greetPos = {
+      x: this.nameData.bounds.centerX - gw * 0.5,
+      y: greetCenterY - gh * 0.5
+    };
+
+    // Sender overlay: tightly bounded
+    if (this.senderName && this.senderName.trim()) {
+      const sw = Math.min(w, isPhone ? 280 : 380);
+      const sh = isPhone ? 36 : 48;
+      if (!this.senderCanvas) this.senderCanvas = document.createElement('canvas');
+      this.senderCanvas.width = sw;
+      this.senderCanvas.height = sh;
+      const sctx = this.senderCanvas.getContext('2d');
+      sctx.clearRect(0, 0, sw, sh);
+      const senderSize = isPhone ? 14 : 18;
+      sctx.font = `500 ${senderSize}px ${fontStack}`;
+      sctx.textAlign = 'center';
+      sctx.textBaseline = 'middle';
+      sctx.fillStyle = '#F1F5F9';
+      sctx.fillText(`from ${this.senderName.trim()}`, sw * 0.5, sh * 0.5);
+
+      const senderCenterY = Math.min(h - 40, this.nameData.bounds.maxY + (isPhone ? 28 : 38));
+      this.senderPos = {
+        x: this.nameData.bounds.centerX - sw * 0.5,
+        y: senderCenterY - sh * 0.5
+      };
+    }
+  }
+
+  drawTextOverlays(ctx, t) {
+    if (!this.nameData) return;
 
     let greetAlpha = 0;
     if (t < 6.8) greetAlpha = Math.min(1.0, (t - 6.0) / 0.8);
     else if (t < 9.5) greetAlpha = 1.0;
     else greetAlpha = Math.max(0.0, 1.0 - (t - 9.5) / 1.6);
 
-    if (greetAlpha > 0.01) {
+    if (greetAlpha > 0.01 && this.greetCanvas && this.greetPos) {
       ctx.save();
-      const greetSize = isPhone ? 20 : 28;
-      ctx.font = `800 ${greetSize}px ${fontStack}`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.letterSpacing = '-0.01em';
-      ctx.shadowColor = '#FCD34D';
-      ctx.shadowBlur = 10;
-      ctx.fillStyle = `rgba(252, 211, 77, ${greetAlpha.toFixed(2)})`;
-      const greetY = Math.max(48, this.nameData.bounds.minY - (isPhone ? 30 : 42));
-      ctx.fillText(this.greeting, this.nameData.bounds.centerX, greetY);
+      ctx.globalAlpha = greetAlpha;
+      ctx.drawImage(this.greetCanvas, this.greetPos.x, this.greetPos.y);
       ctx.restore();
     }
 
-    if (this.senderName && this.senderName.trim()) {
+    if (this.senderName && this.senderName.trim() && this.senderCanvas && this.senderPos) {
       let senderAlpha = 0;
       if (t < 7.3) senderAlpha = Math.min(1.0, (t - 6.5) / 0.8);
       else if (t < 9.5) senderAlpha = 0.9;
@@ -448,13 +538,8 @@ export class ShowTimeline {
 
       if (senderAlpha > 0.01) {
         ctx.save();
-        const senderSize = isPhone ? 14 : 18;
-        ctx.font = `500 ${senderSize}px ${fontStack}`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillStyle = `rgba(241, 245, 249, ${senderAlpha.toFixed(2)})`;
-        const senderY = Math.min(this.sky.height - 40, this.nameData.bounds.maxY + (isPhone ? 28 : 38));
-        ctx.fillText(`from ${this.senderName.trim()}`, this.nameData.bounds.centerX, senderY);
+        ctx.globalAlpha = senderAlpha;
+        ctx.drawImage(this.senderCanvas, this.senderPos.x, this.senderPos.y);
         ctx.restore();
       }
     }

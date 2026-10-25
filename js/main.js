@@ -31,7 +31,7 @@ class DiwaliSkyApp {
     this.demoName = urlParams.get('name') || 'Priya';
     this.queryName = urlParams.get('name') || urlParams.get('recipient') || 'Priya';
     this.querySender = urlParams.get('from') || urlParams.get('sender') || 'Vivek';
-    this.autoPlayShow = urlParams.get('show') === '1';
+    this.autoPlayShow = urlParams.get('show') === '1' || urlParams.get('autoplay') === '1';
 
     // Budget setup
     const isPhone = window.innerWidth < 600;
@@ -50,8 +50,10 @@ class DiwaliSkyApp {
     const forcedQuality = (urlParams.get('quality') || '').toLowerCase();
     if (['high', 'medium', 'low'].includes(forcedQuality)) {
       this.qualityTier = forcedQuality;
+      this.isQualityForced = true;
     } else {
       this.qualityTier = isPhone ? 'medium' : 'high';
+      this.isQualityForced = false;
     }
     this.setQualityTier(this.qualityTier);
 
@@ -72,11 +74,19 @@ class DiwaliSkyApp {
       });
     }
 
-    // Performance tracking
+    // Performance tracking and dynamic tier adjustment (Section 6)
     this.fpsHistory = [];
     this.currentFps = 60;
     this.startTime = performance.now();
-    this.hasEvaluatedPerformance = false;
+    this.perfEvalTimer = 0;
+    this.perfEvalFrames = 0;
+
+    // Benchmark recorder for automated speed testing (?benchmark=1)
+    this.isBenchmark = urlParams.get('benchmark') === '1';
+    this.benchmarkFrames = 0;
+    this.benchmarkTotalDt = 0;
+    this.benchmarkFpsSamples = [];
+    this.benchmarkFinished = false;
 
     // Animation loop state
     this.lastTime = performance.now();
@@ -341,6 +351,14 @@ class DiwaliSkyApp {
     this.enableAmbient = false;
     this.capturedStillUrl = null;
     this.show.start(name, sender, greeting, startRocketFromButton);
+    this.lastTime = performance.now();
+    if (this.isBenchmark) {
+      this.benchmarkFrames = 0;
+      this.benchmarkTotalDt = 0;
+      this.benchmarkFpsSamples = [];
+      this.benchmarkFinished = false;
+      window.dsBenchmarkResults = null;
+    }
     this.show.onComplete = () => {
       this.enableAmbient = true;
     };
@@ -535,14 +553,46 @@ class DiwaliSkyApp {
       const avgFps = this.fpsHistory.reduce((a, b) => a + b, 0) / this.fpsHistory.length;
       this.currentFps = Math.round(avgFps);
 
-      // Performance evaluation during first 2 seconds: cut budget by 30% if under 45 fps
-      const elapsed = (now - this.startTime) / 1000;
-      if (!this.hasEvaluatedPerformance && elapsed >= 2.0 && this.fpsHistory.length >= 25) {
-        this.hasEvaluatedPerformance = true;
-        if (avgFps < 45) {
-          const reducedBudget = Math.floor(this.initialBudget * 0.7);
-          this.particlePool.setBudget(reducedBudget);
-          console.warn(`Frame rate under 45 fps (${Math.round(avgFps)} fps). Reduced particle budget to ${reducedBudget}.`);
+      // Performance evaluation every 2 seconds: step down one tier if under 45 fps (Section 6)
+      this.perfEvalTimer += dt;
+      this.perfEvalFrames++;
+      if (this.perfEvalTimer >= 2.0) {
+        const windowAvgFps = this.perfEvalFrames / this.perfEvalTimer;
+        this.perfEvalTimer = 0;
+        this.perfEvalFrames = 0;
+
+        if (!this.isQualityForced && windowAvgFps < 45) {
+          if (this.qualityTier === 'high') {
+            console.warn(`Frame rate under 45 fps (${Math.round(windowAvgFps)} fps). Stepping down from High to Medium tier.`);
+            this.setQualityTier('medium');
+          } else if (this.qualityTier === 'medium') {
+            console.warn(`Frame rate under 45 fps (${Math.round(windowAvgFps)} fps). Stepping down from Medium to Low tier.`);
+            this.setQualityTier('low');
+          }
+        }
+      }
+
+      // Benchmark tracking (?benchmark=1)
+      if (this.isBenchmark && this.show.isActive) {
+        this.benchmarkFrames++;
+        this.benchmarkTotalDt += dt;
+        this.benchmarkFpsSamples.push(instantFps);
+
+        if (this.show.currentTime >= 11.5 && !this.benchmarkFinished) {
+          this.benchmarkFinished = true;
+          const avg = this.benchmarkFrames / this.benchmarkTotalDt;
+          this.benchmarkFpsSamples.sort((a, b) => a - b);
+          const p1 = this.benchmarkFpsSamples[Math.floor(this.benchmarkFpsSamples.length * 0.01)] || 0;
+          const p50 = this.benchmarkFpsSamples[Math.floor(this.benchmarkFpsSamples.length * 0.5)] || 0;
+          window.dsBenchmarkResults = {
+            tier: this.qualityTier,
+            avgFps: Math.round(avg * 10) / 10,
+            p1Fps: Math.round(p1 * 10) / 10,
+            medianFps: Math.round(p50 * 10) / 10,
+            totalFrames: this.benchmarkFrames,
+            duration: Math.round(this.benchmarkTotalDt * 10) / 10
+          };
+          console.log(`[BENCHMARK] Tier: ${this.qualityTier}, Avg FPS: ${window.dsBenchmarkResults.avgFps}, 1% Low: ${window.dsBenchmarkResults.p1Fps}`);
         }
       }
 

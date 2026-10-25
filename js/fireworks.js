@@ -118,7 +118,7 @@ export class FireworksEngine {
 
   burstPeony(x, y, colors) {
     const isPhone = window.innerWidth < 600;
-    const count = this.isReducedMotion ? 75 : (isPhone ? 210 : 310);
+    const count = this.isReducedMotion ? 75 : (isPhone ? 180 : 310);
     const baseSpeed = isPhone ? 238 : 288;
 
     for (let i = 0; i < count; i++) {
@@ -144,7 +144,7 @@ export class FireworksEngine {
 
   burstRing(x, y, colors) {
     const isPhone = window.innerWidth < 600;
-    const count = this.isReducedMotion ? 65 : (isPhone ? 190 : 270);
+    const count = this.isReducedMotion ? 65 : (isPhone ? 180 : 270);
     const baseSpeed = isPhone ? 225 : 275;
     const rotOffset = Math.random() * Math.PI * 2;
 
@@ -171,14 +171,14 @@ export class FireworksEngine {
 
   burstWillow(x, y) {
     const isPhone = window.innerWidth < 600;
-    const count = this.isReducedMotion ? 85 : (isPhone ? 230 : 340);
+    const count = this.isReducedMotion ? 85 : (isPhone ? 180 : 340);
     const baseSpeed = isPhone ? 188 : 238;
 
     for (let i = 0; i < count; i++) {
       const angle = Math.random() * Math.PI * 2;
       const speed = baseSpeed * (0.35 + 0.7 * Math.random());
       const colId = Math.random() < 0.6 ? COLOR_IDS.gold : COLOR_IDS.amber;
-      const maxL = (2.4 + Math.random() * 0.6) * 1.30;
+      const maxL = (1.75 + Math.random() * 0.45) * (isPhone ? 1.05 : 1.30);
 
       this.pool.spawn(
         x, y,

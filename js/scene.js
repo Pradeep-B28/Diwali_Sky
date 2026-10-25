@@ -102,8 +102,8 @@ export class SceneManager {
 
   setQualityTier(tier) {
     this.qualityTier = tier;
-    this.initLanterns();
-    this.initEmbers();
+    this.adjustLanternsForTier();
+    this.adjustEmbersForTier();
   }
 
   setReducedMotion(enabled) {
@@ -183,24 +183,50 @@ export class SceneManager {
       ctx.globalAlpha = s.alpha;
       ctx.fillRect(s.x, s.y, s.r, s.r);
     }
+
+    // Pre-render base stars into cached background
+    ctx.fillStyle = '#E2E8F0';
+    for (let i = 0; i < this.stars.length; i++) {
+      const s = this.stars[i];
+      ctx.globalAlpha = 0.40;
+      ctx.fillRect(s.x, s.y, s.r, s.r);
+    }
     ctx.globalAlpha = 1.0;
   }
 
   initLanterns() {
+    this.lanterns = [];
+    this.adjustLanternsForTier(true);
+  }
+
+  adjustLanternsForTier(isInitial = false) {
     const limits = { high: 10, medium: 6, low: 3 };
     const maxCount = limits[this.qualityTier] || 6;
-    this.lanterns = [];
-    for (let i = 0; i < maxCount; i++) {
-      this.lanterns.push(createLanternItem(this.width, this.height, this.isReducedMotion, true));
+    if (!this.lanterns) this.lanterns = [];
+    if (this.lanterns.length > maxCount) {
+      this.lanterns.length = maxCount;
+    } else {
+      while (this.lanterns.length < maxCount) {
+        this.lanterns.push(createLanternItem(this.width, this.height, this.isReducedMotion, isInitial));
+      }
     }
   }
 
   initEmbers() {
+    this.embers = [];
+    this.adjustEmbersForTier(true);
+  }
+
+  adjustEmbersForTier(isInitial = false) {
     const limits = { high: 40, medium: 20, low: 0 };
     const maxCount = limits[this.qualityTier] || 20;
-    this.embers = [];
-    for (let i = 0; i < maxCount; i++) {
-      this.embers.push(createEmberItem(this.diyas, true));
+    if (!this.embers) this.embers = [];
+    if (this.embers.length > maxCount) {
+      this.embers.length = maxCount;
+    } else {
+      while (this.embers.length < maxCount) {
+        this.embers.push(createEmberItem(this.diyas, isInitial));
+      }
     }
   }
 

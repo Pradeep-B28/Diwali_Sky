@@ -1,6 +1,6 @@
 // sprites.js - Pre-rendered glow sprites for realistic firework sparks and smooth name gradients
 
-export const SPRITE_SIZE = 64;
+export const SPRITE_SIZE = 32;
 const HALF_SIZE = SPRITE_SIZE / 2;
 
 // Section 5 palette definitions

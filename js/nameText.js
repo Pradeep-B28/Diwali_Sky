@@ -126,7 +126,7 @@ export function generateNamePoints(name, screenWidth, screenHeight) {
   }
 
   // Calculate sampling step to target point budget
-  const targetCount = isPhone ? 1100 : 2100;
+  const targetCount = isPhone ? 800 : 2100;
   let step = Math.max(1, Math.round(Math.sqrt((totalSolidPixels * 4) / targetCount)));
 
   function samplePoints(currentStep) {

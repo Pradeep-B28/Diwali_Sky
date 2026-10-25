@@ -20,20 +20,20 @@ lctx.beginPath();
 lctx.ellipse(16, 24, 7, 7, 0, 0, Math.PI * 2);
 lctx.fill();
 
-// Pre-rendered 256x256 radial glow canvases for burst lighting
+// Pre-rendered 64x64 radial glow canvases for burst lighting
 const BURST_LIGHT_CANVASES = [
   '#34D399', '#2DD4BF', '#22D3EE', '#A7F3D0', '#FCD34D', '#FBBF24', '#F8FAFC'
 ].map(hex => {
   const cnv = document.createElement('canvas');
-  cnv.width = 256;
-  cnv.height = 256;
+  cnv.width = 64;
+  cnv.height = 64;
   const cctx = cnv.getContext('2d');
-  const g = cctx.createRadialGradient(128, 128, 0, 128, 128, 128);
+  const g = cctx.createRadialGradient(32, 32, 0, 32, 32, 32);
   g.addColorStop(0.0, hex);
   g.addColorStop(0.35, hex);
   g.addColorStop(1.0, 'rgba(0, 0, 0, 0)');
   cctx.fillStyle = g;
-  cctx.fillRect(0, 0, 256, 256);
+  cctx.fillRect(0, 0, 64, 64);
   return cnv;
 });
 
@@ -123,14 +123,15 @@ export function createEmberItem(diyas, randomY = false) {
 }
 
 export function drawSkyAtmosphere(ctx, scene, time) {
-  // Stars twinkling
+  // Stars twinkling (twinkle prominent stars over pre-rendered base sky)
   ctx.save();
-  ctx.fillStyle = '#E2E8F0';
-  for (let i = 0; i < scene.stars.length; i++) {
+  ctx.fillStyle = '#FFFFFF';
+  const twinkleCount = Math.min(24, scene.stars.length);
+  for (let i = 0; i < twinkleCount; i++) {
     const s = scene.stars[i];
     const a = 0.35 + 0.45 * Math.sin(s.phase + time * s.speed);
     ctx.globalAlpha = Math.max(0.1, a);
-    ctx.fillRect(s.x, s.y, s.r, s.r);
+    ctx.fillRect(s.x, s.y, s.r * 1.2, s.r * 1.2);
   }
   ctx.restore();
 
@@ -179,9 +180,11 @@ export function drawBurstLighting(ctx, activeLights, width, midGopuram, midShift
   ctx.save();
   ctx.globalCompositeOperation = 'lighter';
 
+  let totalStrength = 0;
+  const rad = Math.min(220, Math.max(140, width * 0.35));
   for (let i = 0; i < activeLights.length; i++) {
     const l = activeLights[i];
-    const rad = Math.max(340, width * 0.45);
+    totalStrength += l.strength;
     const cnv = BURST_LIGHT_CANVASES[l.colorId] || BURST_LIGHT_CANVASES[0];
     ctx.globalAlpha = l.strength * 0.22;
     ctx.drawImage(cnv, l.x - rad, l.y - rad, rad * 2, rad * 2);
@@ -189,15 +192,16 @@ export function drawBurstLighting(ctx, activeLights, width, midGopuram, midShift
 
   // Thin rim light in --spark-teal (up to 30% strength)
   if (midGopuram && midGopuram.rimPoints.length > 0) {
-    const totalStrength = activeLights.reduce((acc, l) => acc + l.strength, 0);
     const rimAlpha = Math.min(0.30, totalStrength * 0.15);
     if (rimAlpha > 0.02) {
       ctx.strokeStyle = SCENE_COLORS.sparkTeal;
       ctx.lineWidth = 1.8;
       ctx.globalAlpha = rimAlpha;
       ctx.beginPath();
-      for (let p = 0; p < midGopuram.rimPoints.length; p++) {
-        const pt = midGopuram.rimPoints[p];
+      const pts = midGopuram.rimPoints;
+      const len = pts.length;
+      for (let p = 0; p < len; p++) {
+        const pt = pts[p];
         const px = -20 + midShift + pt.x;
         if (p === 0) ctx.moveTo(px, pt.y);
         else ctx.lineTo(px, pt.y);
@@ -260,16 +264,18 @@ export function drawCityWindows(ctx, windows, layerWidth, farShift, time, ripple
   if (!windows || windows.length === 0 || rippleProgress <= 0.001) return;
   ctx.save();
   ctx.fillStyle = SCENE_COLORS.sparkGold;
+  ctx.globalAlpha = 0.52;
+  const isFullyLit = rippleProgress >= 1.0;
+
   for (let i = 0; i < windows.length; i++) {
     const w = windows[i];
-    if (w.x / layerWidth > rippleProgress) continue;
-    const isDark = Math.sin(time * 0.35 + w.phase) < -0.78;
-    const flicker = isDark ? 0.08 : (0.80 + 0.20 * Math.sin(time * w.flickerSpeed + w.phase));
-    const alpha = w.baseAlpha * flicker;
-    if (alpha > 0.02) {
-      ctx.globalAlpha = alpha;
-      ctx.fillRect(-20 + farShift + w.x, w.y, 1.8, 1.8);
+    if (!isFullyLit && w.x / layerWidth > rippleProgress) continue;
+    // Only a few windows switch on/off slowly per Section 4B
+    if (i % 8 === 0) {
+      const isDark = Math.sin(time * 0.35 + w.phase) < -0.78;
+      if (isDark) continue;
     }
+    ctx.fillRect(-20 + farShift + w.x, w.y, 1.8, 1.8);
   }
   ctx.restore();
 }
@@ -279,22 +285,35 @@ export function drawGopuramLights(ctx, midGopuram, midShift, time, tierProgress 
   const { festivalLights, catenaryLights, baseY, topY } = midGopuram;
   const towerH = Math.max(1, baseY - topY + 12);
   ctx.save();
+
   if (festivalLights && festivalLights.length > 0) {
     ctx.fillStyle = SCENE_COLORS.sparkGold;
+    ctx.globalAlpha = 0.82;
+    const isFullyLit = tierProgress >= 1.0;
+
     for (let i = 0; i < festivalLights.length; i++) {
       const fl = festivalLights[i];
-      if ((baseY - fl.y) / towerH > tierProgress * 1.12) continue;
-      ctx.globalAlpha = 0.65 + 0.35 * Math.sin(time * 3.5 + fl.phase);
+      if (!isFullyLit && (baseY - fl.y) / towerH > tierProgress * 1.12) continue;
       const sz = fl.isApex ? 3 : 2;
       ctx.fillRect(-20 + midShift + fl.x - 1, fl.y - 1, sz, sz);
     }
   }
+
   if (catenaryLights && catenaryLights.length > 0 && tierProgress >= 0.60) {
-    const catAlpha = Math.min(1.0, (tierProgress - 0.60) / 0.35);
-    for (let i = 0; i < catenaryLights.length; i++) {
+    const catAlpha = Math.min(1.0, (tierProgress - 0.60) / 0.35) * 0.85;
+    ctx.globalAlpha = catAlpha;
+
+    // Draw gold lights
+    ctx.fillStyle = SCENE_COLORS.sparkGold;
+    for (let i = 0; i < catenaryLights.length; i += 2) {
       const cl = catenaryLights[i];
-      ctx.fillStyle = cl.colorHex;
-      ctx.globalAlpha = catAlpha * (0.70 + 0.30 * Math.sin(time * 2.8 + cl.phase));
+      ctx.fillRect(-20 + midShift + cl.x - 1, cl.y - 1, 2, 2);
+    }
+
+    // Draw emerald lights
+    ctx.fillStyle = SCENE_COLORS.sparkEmerald;
+    for (let i = 1; i < catenaryLights.length; i += 2) {
+      const cl = catenaryLights[i];
       ctx.fillRect(-20 + midShift + cl.x - 1, cl.y - 1, 2, 2);
     }
   }
