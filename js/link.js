@@ -107,20 +107,25 @@ export function parseShareHash(hashString = null) {
       return { hasShowData: true, valid: false, error: 'Unsupported version' };
     }
 
+    // Support both compact format (t, f, g) and verbose format (recipient, sender, greeting)
+    const rawRecipient = data.t !== undefined ? data.t : data.recipient;
+    const rawSender = data.f !== undefined ? data.f : (data.sender || '');
+    const rawGreetingStr = String(data.g !== undefined ? data.g : (data.greeting || 'diwali')).toLowerCase();
+
     // Validate recipient
-    const recipientResult = validateRecipient(data.t);
+    const recipientResult = validateRecipient(rawRecipient);
     if (!recipientResult.valid) {
       return { hasShowData: true, valid: false, error: recipientResult.error };
     }
 
     // Validate sender
-    const senderResult = validateSender(data.f || '');
+    const senderResult = validateSender(rawSender);
     if (!senderResult.valid) {
       return { hasShowData: true, valid: false, error: senderResult.error };
     }
 
     // Validate greeting
-    const greeting = data.g === 'deepavali' ? 'deepavali' : 'diwali';
+    const greeting = rawGreetingStr.includes('deepavali') ? 'deepavali' : 'diwali';
 
     return {
       hasShowData: true,

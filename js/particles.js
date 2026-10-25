@@ -1,5 +1,7 @@
 // particles.js - High-performance typed-array particle pool and physics
 
+import { PALETTE_SPRITES } from './sprites.js';
+
 export const PARTICLE_TYPES = {
   STANDARD: 0,
   WILLOW: 1,
@@ -37,6 +39,7 @@ export class ParticlePool {
   constructor(initialBudget = 6000) {
     this.capacity = MAX_CAPACITY;
     this.budget = initialBudget;
+    this.qualityTier = 'high';
 
     // Typed arrays for particle data
     this.x = new Float32Array(this.capacity);
@@ -60,6 +63,11 @@ export class ParticlePool {
     }
     this.activeCount = 0;
 
+    // Preallocated alpha bins for zero-flush batched drawing
+    this.bin0 = new Int32Array(this.capacity);
+    this.bin1 = new Int32Array(this.capacity);
+    this.bin2 = new Int32Array(this.capacity);
+
     this.isReducedMotion = false;
   }
 
@@ -69,6 +77,10 @@ export class ParticlePool {
 
   setReducedMotion(enabled) {
     this.isReducedMotion = enabled;
+  }
+
+  setQualityTier(tier) {
+    this.qualityTier = tier;
   }
 
   spawn(x, y, vx, vy, colorId, maxLife, size = 2.0, type = PARTICLE_TYPES.STANDARD, drag = 0.96, gravity = 120, flicker = 0) {
@@ -119,6 +131,7 @@ export class ParticlePool {
 
   update(dt) {
     const timeStepRatio = dt * 60;
+    const dragCache = {};
 
     for (let i = 0; i < this.activeCount; i++) {
       const idx = this.activeIndices[i];
@@ -142,8 +155,14 @@ export class ParticlePool {
         continue;
       }
 
-      // Physics integration
-      const dragFactor = Math.pow(this.drag[idx], timeStepRatio);
+      // Physics integration with cached drag calculation
+      const d = this.drag[idx];
+      let dragFactor = dragCache[d];
+      if (dragFactor === undefined) {
+        dragFactor = Math.pow(d, timeStepRatio);
+        dragCache[d] = dragFactor;
+      }
+
       this.vx[idx] *= dragFactor;
       this.vy[idx] = this.vy[idx] * dragFactor + this.gravity[idx] * dt;
 
@@ -158,59 +177,83 @@ export class ParticlePool {
     ctx.globalCompositeOperation = 'destination-out';
     ctx.fillStyle = this.isReducedMotion ? 'rgba(0, 0, 0, 0.40)' : 'rgba(0, 0, 0, 0.18)';
     ctx.fillRect(0, 0, width, height);
-    ctx.restore();
 
     // Draw sparks with 'lighter' blending so overlaps glow
-    ctx.save();
     ctx.globalCompositeOperation = 'lighter';
 
-    const streakDt = Math.min(dt, 0.035);
+    const isLowTier = this.qualityTier === 'low';
+    let count0 = 0;
+    let count1 = 0;
+    let count2 = 0;
 
     for (let i = 0; i < this.activeCount; i++) {
       const idx = this.activeIndices[i];
       const progress = this.life[idx] / this.maxLife[idx];
       let alpha = 1.0 - progress;
 
-      // Random flicker
       const flickSpeed = this.flicker[idx];
       if (flickSpeed > 0) {
-        const flick = 0.6 + 0.4 * Math.sin(this.life[idx] * flickSpeed);
-        alpha *= flick;
+        alpha *= (0.6 + 0.4 * Math.sin(this.life[idx] * flickSpeed));
       }
 
-      if (alpha <= 0.01) continue;
+      if (alpha <= 0.08) continue;
 
-      const cId = this.colorId[idx];
-      const aBin = Math.min(ALPHA_BINS, Math.max(0, Math.floor(alpha * ALPHA_BINS)));
-      const colorStr = COLOR_ALPHA_LUT[cId][aBin];
-
-      // Sparks shrink as they die
-      const curSize = Math.max(0.8, this.size[idx] * (1.0 - progress * 0.4));
-      const px = this.x[idx];
-      const py = this.y[idx];
-      const vx = this.vx[idx];
-      const vy = this.vy[idx];
-      const pType = this.type[idx];
-
-      const speedSq = vx * vx + vy * vy;
-      if (speedSq > 900 && pType !== PARTICLE_TYPES.CRACKLE_POP) {
-        // Motion streak
-        const streakFactor = pType === PARTICLE_TYPES.WILLOW ? 0.7 : 0.45;
-        const prevX = px - vx * streakDt * streakFactor;
-        const prevY = py - vy * streakDt * streakFactor;
-
-        ctx.strokeStyle = colorStr;
-        ctx.lineWidth = curSize;
-        ctx.lineCap = 'round';
-        ctx.beginPath();
-        ctx.moveTo(prevX, prevY);
-        ctx.lineTo(px, py);
-        ctx.stroke();
+      if (alpha >= 0.72) {
+        this.bin2[count2++] = idx;
+      } else if (alpha >= 0.35) {
+        this.bin1[count1++] = idx;
       } else {
-        // Fast square or small dot
-        ctx.fillStyle = colorStr;
-        const half = curSize * 0.5;
-        ctx.fillRect(px - half, py - half, curSize, curSize);
+        this.bin0[count0++] = idx;
+      }
+    }
+
+    if (isLowTier) {
+      // Low quality tier: fast rect drawing for burst sparks
+      for (let i = 0; i < count2; i++) {
+        const idx = this.bin2[i];
+        const half = this.size[idx] * 0.5;
+        ctx.fillStyle = COLOR_ALPHA_LUT[this.colorId[idx]][20];
+        ctx.fillRect(this.x[idx] - half, this.y[idx] - half, this.size[idx], this.size[idx]);
+      }
+      for (let i = 0; i < count1; i++) {
+        const idx = this.bin1[i];
+        const half = this.size[idx] * 0.5;
+        ctx.fillStyle = COLOR_ALPHA_LUT[this.colorId[idx]][12];
+        ctx.fillRect(this.x[idx] - half, this.y[idx] - half, this.size[idx], this.size[idx]);
+      }
+      for (let i = 0; i < count0; i++) {
+        const idx = this.bin0[i];
+        const half = this.size[idx] * 0.5;
+        ctx.fillStyle = COLOR_ALPHA_LUT[this.colorId[idx]][5];
+        ctx.fillRect(this.x[idx] - half, this.y[idx] - half, this.size[idx], this.size[idx]);
+      }
+    } else {
+      // High and Medium tiers: glow sprite with batched alpha bins (only 3 state changes total)
+      ctx.globalAlpha = 1.0;
+      for (let i = 0; i < count2; i++) {
+        const idx = this.bin2[i];
+        const sprite = PALETTE_SPRITES[this.colorId[idx]] || PALETTE_SPRITES[0];
+        const sz = this.size[idx] * 3.0;
+        const half = sz * 0.5;
+        ctx.drawImage(sprite, this.x[idx] - half, this.y[idx] - half, sz, sz);
+      }
+
+      ctx.globalAlpha = 0.62;
+      for (let i = 0; i < count1; i++) {
+        const idx = this.bin1[i];
+        const sprite = PALETTE_SPRITES[this.colorId[idx]] || PALETTE_SPRITES[0];
+        const sz = this.size[idx] * 2.7;
+        const half = sz * 0.5;
+        ctx.drawImage(sprite, this.x[idx] - half, this.y[idx] - half, sz, sz);
+      }
+
+      ctx.globalAlpha = 0.30;
+      for (let i = 0; i < count0; i++) {
+        const idx = this.bin0[i];
+        const sprite = PALETTE_SPRITES[this.colorId[idx]] || PALETTE_SPRITES[0];
+        const sz = this.size[idx] * 2.3;
+        const half = sz * 0.5;
+        ctx.drawImage(sprite, this.x[idx] - half, this.y[idx] - half, sz, sz);
       }
     }
 

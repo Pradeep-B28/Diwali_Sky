@@ -30,56 +30,51 @@
     }
     .content-box {
       position: absolute;
-      inset: 0;
+      top: 36px;
+      left: 0; right: 0;
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: center;
       z-index: 5;
       text-align: center;
-      padding: 40px;
+      padding: 0 40px;
     }
     .logo-chip {
       background: #FFFFFF;
       border-radius: 12px;
-      padding: 8px 16px;
-      box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -4px rgba(0,0,0,0.1);
+      padding: 8px 18px;
+      box-shadow: 0 10px 15px -3px rgba(0,0,0,0.3), 0 4px 6px -4px rgba(0,0,0,0.2);
       display: inline-flex;
       align-items: center;
       gap: 10px;
-      margin-bottom: 28px;
+      margin-bottom: 16px;
     }
     .logo-chip img {
-      height: 36px;
+      height: 32px;
       width: auto;
     }
+    .logo-chip span {
+      font-weight: 800;
+      font-size: 20px;
+      color: #0F172A;
+      letter-spacing: -0.01em;
+    }
     .headline {
-      font-size: 64px;
+      font-size: 52px;
       font-weight: 800;
       letter-spacing: -0.01em;
       background: linear-gradient(90deg, #34D399, #2DD4BF, #22D3EE);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
-      margin-bottom: 18px;
-      text-shadow: 0 0 30px rgba(52, 211, 153, 0.25);
+      margin-bottom: 8px;
+      text-shadow: 0 0 40px rgba(52, 211, 153, 0.35);
     }
     .subtext {
-      font-size: 26px;
+      font-size: 22px;
       color: #CBD5E1;
       font-weight: 500;
-      max-width: 800px;
-      line-height: 1.4;
-      margin-bottom: 30px;
-    }
-    .badge {
-      background: rgba(15, 23, 42, 0.85);
-      border: 1px solid #2DD4BF;
-      color: #A7F3D0;
-      border-radius: 999px;
-      padding: 8px 20px;
-      font-size: 16px;
-      font-weight: 600;
-      box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+      max-width: 780px;
+      line-height: 1.35;
     }
   </style>
 </head>
@@ -88,34 +83,176 @@
   <canvas id="sky"></canvas>
   <div class="content-box">
     <div class="logo-chip">
-      <img src="../assets/logo.png" alt="Wrench Wise" onerror="this.style.display='none';document.getElementById('fallback').style.display='inline-block';" />
-      <span id="fallback" style="display:none;font-weight:800;font-size:22px;color:#111827;">Wrench Wise</span>
+      <img src="../assets/logo.png" alt="Wrench Wise" />
+      <span>Wrench Wise</span>
     </div>
     <h1 class="headline">A Diwali surprise for you</h1>
     <p class="subtext">Someone wrote your name in fireworks across the night sky.</p>
-    <div class="badge">Built with code by Wrench Wise</div>
   </div>
 
-  <script>
+  <script type="module">
+    import { generateNamePoints } from '../js/nameText.js';
+    import { PALETTE_SPRITES, getNameGradientSprite, GLINT_SPRITE } from '../js/sprites.js';
+
     const canvas = document.getElementById('sky');
     const ctx = canvas.getContext('2d');
-    canvas.width = 1200;
-    canvas.height = 630;
+    const W = 1200;
+    const H = 630;
+    canvas.width = W;
+    canvas.height = H;
 
-    // Draw stars
-    for (let i = 0; i < 180; i++) {
-      const x = Math.random() * 1200;
-      const y = Math.random() * 520;
+    // 1. Stars
+    for (let i = 0; i < 90; i++) {
+      const x = Math.random() * W;
+      const y = Math.random() * (H * 0.70);
       const r = Math.random() * 1.5 + 0.5;
-      const a = Math.random() * 0.7 + 0.3;
-      ctx.fillStyle = `rgba(226, 232, 240, ${a})`;
+      const a = Math.random() * 0.6 + 0.3;
+      ctx.fillStyle = `rgba(248, 250, 252, ${a.toFixed(2)})`;
+      ctx.fillRect(x, y, r, r);
+    }
+
+    // 2. Distant city layer (#1E293B)
+    ctx.fillStyle = '#1E293B';
+    const cityBaseY = H * 0.72;
+    ctx.beginPath();
+    ctx.moveTo(0, H);
+    ctx.lineTo(0, cityBaseY + 30);
+    const buildings = [
+      { w: 55, h: 50 }, { w: 40, h: 75 }, { w: 60, h: 40 }, { w: 45, h: 90 },
+      { w: 70, h: 60 }, { w: 50, h: 80 }, { w: 65, h: 45 }, { w: 80, h: 105 },
+      { w: 55, h: 65 }, { w: 60, h: 85 }, { w: 70, h: 50 }, { w: 45, h: 95 },
+      { w: 75, h: 60 }, { w: 50, h: 70 }, { w: 65, h: 80 }, { w: 80, h: 55 },
+      { w: 55, h: 90 }, { w: 70, h: 65 }, { w: 60, h: 45 }, { w: 50, h: 75 }
+    ];
+    let curX = 0;
+    for (const b of buildings) {
+      ctx.lineTo(curX, cityBaseY + 40 - b.h);
+      ctx.lineTo(curX + b.w, cityBaseY + 40 - b.h);
+      curX += b.w;
+    }
+    ctx.lineTo(W, cityBaseY + 30);
+    ctx.lineTo(W, H);
+    ctx.closePath();
+    ctx.fill();
+
+    // City Windows
+    for (let i = 0; i < 45; i++) {
+      const wx = Math.random() * W;
+      const wy = cityBaseY - Math.random() * 45;
+      const col = Math.random() < 0.8 ? '#FCD34D' : '#10B981';
+      ctx.fillStyle = col;
+      ctx.globalAlpha = 0.6 + Math.random() * 0.4;
+      ctx.fillRect(wx, wy, 2.5, 3.5);
+    }
+    ctx.globalAlpha = 1.0;
+
+    // 3. Mid Gopuram silhouette (#0F172A) on right side
+    const gx = W * 0.82;
+    const gy = H * 0.78;
+    ctx.fillStyle = '#0F172A';
+    ctx.beginPath();
+    ctx.moveTo(gx - 75, gy);
+    // Tiered gopuram pyramid
+    ctx.lineTo(gx - 65, gy - 35);
+    ctx.lineTo(gx - 55, gy - 70);
+    ctx.lineTo(gx - 45, gy - 105);
+    ctx.lineTo(gx - 35, gy - 138);
+    ctx.lineTo(gx - 25, gy - 165);
+    ctx.lineTo(gx - 12, gy - 185);
+    // Kalasams
+    ctx.lineTo(gx, gy - 200);
+    ctx.lineTo(gx + 12, gy - 185);
+    ctx.lineTo(gx + 25, gy - 165);
+    ctx.lineTo(gx + 35, gy - 138);
+    ctx.lineTo(gx + 45, gy - 105);
+    ctx.lineTo(gx + 55, gy - 70);
+    ctx.lineTo(gx + 65, gy - 35);
+    ctx.lineTo(gx + 75, gy);
+    ctx.closePath();
+    ctx.fill();
+
+    // Gopuram lights
+    for (let t = 0; t < 6; t++) {
+      const ty = gy - 30 - t * 30;
+      const tw = 65 - t * 10;
+      ctx.fillStyle = t % 2 === 0 ? '#FCD34D' : '#10B981';
+      for (let p = -tw; p <= tw; p += 14) {
+        ctx.beginPath();
+        ctx.arc(gx + p, ty, 2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    // 4. Soft mist bands
+    const mistGrad = ctx.createLinearGradient(0, H * 0.68, 0, H * 0.88);
+    mistGrad.addColorStop(0, 'rgba(203, 213, 225, 0.0)');
+    mistGrad.addColorStop(0.5, 'rgba(203, 213, 225, 0.08)');
+    mistGrad.addColorStop(1, 'rgba(203, 213, 225, 0.0)');
+    ctx.fillStyle = mistGrad;
+    ctx.fillRect(0, H * 0.68, W, H * 0.20);
+
+    // 5. Rising Warm Paper Lanterns
+    function drawLantern(lx, ly, w, h, alpha) {
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      const lgrad = ctx.createLinearGradient(lx, ly, lx, ly + h);
+      lgrad.addColorStop(0, '#FBBF24');
+      lgrad.addColorStop(1, '#FCD34D');
+      ctx.fillStyle = lgrad;
       ctx.beginPath();
-      ctx.arc(x, y, r, 0, Math.PI * 2);
+      ctx.roundRect(lx - w*0.5, ly - h*0.5, w, h, 4);
+      ctx.fill();
+      ctx.fillStyle = '#FFFFFF';
+      ctx.beginPath();
+      ctx.arc(lx, ly + 2, w * 0.22, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    drawLantern(180, 420, 16, 22, 0.75);
+    drawLantern(260, 310, 20, 26, 0.85);
+    drawLantern(390, 480, 14, 18, 0.60);
+    drawLantern(720, 380, 18, 24, 0.80);
+    drawLantern(980, 320, 22, 28, 0.90);
+    drawLantern(1080, 450, 15, 20, 0.70);
+
+    // 6. Front rooftop ledge (#020617)
+    ctx.fillStyle = '#020617';
+    ctx.fillRect(0, H - 38, W, 38);
+
+    // Clay diyas
+    const diyaPositions = [150, 400, 800, 1050];
+    for (const dx of diyaPositions) {
+      const dy = H - 28;
+      // Diya glow
+      ctx.fillStyle = 'rgba(251, 191, 36, 0.35)';
+      ctx.beginPath();
+      ctx.ellipse(dx, dy + 4, 30, 8, 0, 0, Math.PI * 2);
+      ctx.fill();
+      // Clay bowl
+      ctx.fillStyle = '#1E293B';
+      ctx.beginPath();
+      ctx.ellipse(dx, dy, 20, 10, 0, 0, Math.PI);
+      ctx.fill();
+      // Emerald rim
+      ctx.strokeStyle = '#10B981';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.ellipse(dx, dy, 20, 3, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      // Flame
+      ctx.fillStyle = '#FCD34D';
+      ctx.beginPath();
+      ctx.arc(dx, dy - 6, 8, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#FFFFFF';
+      ctx.beginPath();
+      ctx.arc(dx, dy - 6, 4, 0, Math.PI * 2);
       ctx.fill();
     }
 
-    // Function to draw a firework burst
-    function drawBurst(cx, cy, color, count, radius) {
+    // 7. Firework Bursts in background
+    function drawGlowBurst(cx, cy, sprite, count, radius) {
       ctx.save();
       ctx.globalCompositeOperation = 'lighter';
       for (let i = 0; i < count; i++) {
@@ -123,30 +260,56 @@
         const dist = Math.pow(Math.random(), 0.7) * radius;
         const px = cx + Math.cos(angle) * dist;
         const py = cy + Math.sin(angle) * dist;
-        const size = Math.random() * 2.5 + 1.2;
-        const alpha = Math.random() * 0.6 + 0.4;
-        ctx.fillStyle = color;
-        ctx.globalAlpha = alpha;
-        ctx.beginPath();
-        ctx.arc(px, py, size, 0, Math.PI * 2);
-        ctx.fill();
+        const sz = 16 + Math.random() * 8;
+        ctx.globalAlpha = 0.5 + Math.random() * 0.5;
+        ctx.drawImage(sprite, px - sz*0.5, py - sz*0.5, sz, sz);
       }
       ctx.restore();
     }
 
-    // Draw decorative bursts
-    drawBurst(200, 160, '#34D399', 110, 140); // Emerald (top left)
-    drawBurst(1020, 180, '#22D3EE', 120, 150); // Cyan (top right)
-    drawBurst(320, 440, '#FCD34D', 90, 120);  // Gold (lower left)
-    drawBurst(900, 430, '#2DD4BF', 100, 130); // Teal (lower right)
-    drawBurst(600, 110, '#A7F3D0', 80, 100);  // Mint (top center)
+    drawGlowBurst(180, 200, PALETTE_SPRITES[0], 45, 110); // Emerald left
+    drawGlowBurst(1020, 210, PALETTE_SPRITES[2], 50, 120); // Cyan right
+    drawGlowBurst(920, 360, PALETTE_SPRITES[4], 35, 90);   // Gold lower right
+    drawGlowBurst(290, 350, PALETTE_SPRITES[1], 35, 90);   // Teal lower left
 
-    // Soft horizon glow
-    const hGlow = ctx.createLinearGradient(0, 500, 0, 630);
-    hGlow.addColorStop(0, 'rgba(16, 185, 129, 0)');
-    hGlow.addColorStop(1, 'rgba(16, 185, 129, 0.16)');
-    ctx.fillStyle = hGlow;
-    ctx.fillRect(0, 500, 1200, 130);
+    // 8. Name "Priya" in glowing firework sparks in the center
+    const nameData = generateNamePoints('Priya', W, H);
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+
+    // Name aura glow
+    ctx.font = '800 110px ui-sans-serif, system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = 'rgba(52, 211, 153, 0.22)';
+    ctx.shadowColor = '#2DD4BF';
+    ctx.shadowBlur = 35;
+    ctx.fillText('Priya', W * 0.5, H * 0.44);
+
+    // Name sparks
+    for (let i = 0; i < nameData.points.length; i++) {
+      const p = nameData.points[i];
+      const sprite = p.isGlint ? GLINT_SPRITE : getNameGradientSprite(p.u);
+      const sz = p.size * 3.4;
+      const hsz = sz * 0.5;
+      ctx.globalAlpha = p.isGlint ? 1.0 : 0.95;
+      ctx.drawImage(sprite, p.targetX - hsz, p.targetY + 12 - hsz, sz, sz);
+    }
+    ctx.restore();
+
+    // 9. Greeting above name
+    ctx.save();
+    ctx.font = '800 32px ui-sans-serif, system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.shadowColor = '#FCD34D';
+    ctx.shadowBlur = 12;
+    ctx.fillStyle = '#FCD34D';
+    ctx.fillText('Happy Diwali', W * 0.5, nameData.bounds.minY - 26);
+    ctx.restore();
+
+    console.log('OG preview canvas fully rendered');
+    window.ogRendered = true;
   </script>
 </body>
 </html>

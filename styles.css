@@ -49,6 +49,12 @@
   --diya-flame-1: #FBBF24;
   --diya-flame-2: #FCD34D;
 
+  --layer-far: #1E293B;
+  --layer-mid: #0F172A;
+  --layer-near: #020617;
+  --mist: rgba(203, 213, 225, 0.06);
+  --dim-layer: rgba(2, 6, 23, 0.6);
+
   --ease: cubic-bezier(0.4, 0, 0.2, 1);
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
 }
@@ -74,11 +80,18 @@ html, body {
   overflow: hidden; background-color: var(--sky-top);
 }
 
-#sky-canvas, #fireworks-canvas {
+#sky-canvas, #fireworks-canvas, #bloom-canvas {
   position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: block;
 }
 #sky-canvas { z-index: 1; }
 #fireworks-canvas { z-index: 2; cursor: crosshair; }
+#bloom-canvas {
+  z-index: 3;
+  filter: blur(6px);
+  mix-blend-mode: screen;
+  opacity: 0.55;
+  pointer-events: none;
+}
 
 .top-bar {
   position: absolute;
@@ -139,12 +152,52 @@ html, body {
 @media (min-width: 600px) {
   .ui-container { align-items: center; }
 }
+@media (min-width: 768px) {
+  .ui-container.home-active {
+    justify-content: flex-start;
+    align-items: center;
+    padding-left: max(40px, 7vw);
+  }
+}
+
+.home-layout {
+  width: 100%; max-width: 420px; display: flex; flex-direction: column; gap: 16px; pointer-events: none;
+}
+@media (max-width: 767px) {
+  .home-layout {
+    height: 100%;
+    max-height: calc(100dvh - max(76px, env(safe-area-inset-top, 16px) + 60px));
+    justify-content: space-between;
+  }
+  .sky-headline {
+    margin-top: max(54px, calc(env(safe-area-inset-top, 16px) + 40px));
+  }
+}
+@media (min-width: 768px) {
+  .home-layout { max-width: 460px; gap: 20px; }
+}
+
+.sky-headline { text-align: left; pointer-events: auto; }
+.headline-title {
+  font-size: 24px; font-weight: 800; line-height: 1.25; color: var(--on-sky); letter-spacing: -0.01em;
+}
+.headline-title .gold-text { color: var(--spark-gold); }
+.headline-subtitle {
+  font-size: 14px; color: var(--on-sky-muted); font-weight: 400; margin-top: 6px; line-height: 1.4;
+}
+@media (min-width: 768px) {
+  .headline-title { font-size: 32px; line-height: 1.2; }
+  .headline-subtitle { font-size: 15px; }
+}
 
 .ww-card {
-  width: 100%; max-width: 420px; pointer-events: auto;
+  width: 100%; max-width: 420px; pointer-events: auto; position: relative; overflow: hidden;
   background: var(--card); border-radius: var(--radius-card);
   box-shadow: var(--shadow-card); border: 1px solid var(--card-border);
   padding: 20px; color: var(--text); text-align: left;
+}
+.ww-card::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: var(--brand-grad);
 }
 @media (min-width: 600px) {
   .ww-card { padding: 24px; }
@@ -163,6 +216,11 @@ html, body {
 .app-subtitle { font-size: 14px; color: var(--text-2); margin-bottom: 16px; font-weight: 400; }
 
 .card-form { display: flex; flex-direction: column; }
+.form-row-names { display: flex; flex-direction: column; gap: 0; }
+@media (min-width: 600px) {
+  .form-row-names { flex-direction: row; gap: 12px; }
+  .form-row-names .form-group { flex: 1; min-width: 0; }
+}
 .form-group { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; }
 .form-group label { font-size: 13px; font-weight: 600; color: var(--text); }
 
@@ -189,10 +247,29 @@ html, body {
   width: 100%; min-height: 48px; border-radius: var(--radius-full);
   background: var(--brand-grad); color: #FFFFFF; font-size: 15px; font-weight: 700;
   border: none; cursor: pointer; box-shadow: var(--shadow-md); font-family: var(--font-stack);
-  display: flex; align-items: center; justify-content: center;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  position: relative; overflow: hidden;
   transition: opacity 0.15s var(--ease), transform 0.15s var(--ease);
 }
 .ww-btn-primary:active { transform: scale(0.98); opacity: 0.95; }
+
+.ww-btn-primary.btn-sweep::after {
+  content: ''; position: absolute; top: 0; left: -100%; width: 50%; height: 100%;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.45) 50%, rgba(255, 255, 255, 0) 100%);
+  transform: skewX(-25deg); animation: btnSweep 4s ease-in-out infinite; pointer-events: none;
+}
+@keyframes btnSweep {
+  0% { left: -100%; }
+  25% { left: 180%; }
+  100% { left: 180%; }
+}
+
+.btn-spark-icon { flex-shrink: 0; color: #FFFFFF; }
+
+.card-thumbnail {
+  width: 100%; max-height: 140px; object-fit: cover; border-radius: 10px;
+  border: 1px solid var(--card-border); box-shadow: var(--shadow-md); margin-bottom: 14px; display: block;
+}
 
 .ww-btn-secondary {
   width: 100%; min-height: 44px; border-radius: var(--radius-full);

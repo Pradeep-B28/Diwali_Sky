@@ -15,6 +15,7 @@ class DiwaliSkyApp {
     this.appContainer = document.getElementById('app-container');
     this.skyCanvas = document.getElementById('sky-canvas');
     this.fireworksCanvas = document.getElementById('fireworks-canvas');
+    this.bloomCanvas = document.getElementById('bloom-canvas');
     this.debugHud = document.getElementById('debug-hud');
     this.debugFpsEl = document.getElementById('debug-fps');
     this.debugParticlesEl = document.getElementById('debug-particles');
@@ -30,7 +31,7 @@ class DiwaliSkyApp {
     this.demoName = urlParams.get('name') || 'Priya';
     this.queryName = urlParams.get('name') || urlParams.get('recipient') || 'Priya';
     this.querySender = urlParams.get('from') || urlParams.get('sender') || 'Vivek';
-    this.autoPlayShow = urlParams.get('show') === '1';
+    this.autoPlayShow = urlParams.get('show') === '1' || urlParams.get('autoplay') === '1';
 
     // Budget setup
     const isPhone = window.innerWidth < 600;
@@ -38,12 +39,23 @@ class DiwaliSkyApp {
 
     // Subsystems
     this.sound = new SoundManager();
-    this.skyManager = new SkyManager(this.skyCanvas, this.fireworksCanvas);
+    this.skyManager = new SkyManager(this.skyCanvas, this.fireworksCanvas, this.bloomCanvas);
     this.particlePool = new ParticlePool(this.initialBudget);
     this.fireworks = new FireworksEngine(this.particlePool);
     this.show = new ShowTimeline(this.fireworks, this.skyManager);
     this.ui = new UIManager(this, this.sound);
     this.demoManager = new DemoManager(this, this.ui, this.sound);
+
+    // Quality tier setup (?quality=high|medium|low)
+    const forcedQuality = (urlParams.get('quality') || '').toLowerCase();
+    if (['high', 'medium', 'low'].includes(forcedQuality)) {
+      this.qualityTier = forcedQuality;
+      this.isQualityForced = true;
+    } else {
+      this.qualityTier = isPhone ? 'medium' : 'high';
+      this.isQualityForced = false;
+    }
+    this.setQualityTier(this.qualityTier);
 
     this.isReceiverFlow = false;
 
@@ -62,11 +74,19 @@ class DiwaliSkyApp {
       });
     }
 
-    // Performance tracking
+    // Performance tracking and dynamic tier adjustment (Section 6)
     this.fpsHistory = [];
     this.currentFps = 60;
     this.startTime = performance.now();
-    this.hasEvaluatedPerformance = false;
+    this.perfEvalTimer = 0;
+    this.perfEvalFrames = 0;
+
+    // Benchmark recorder for automated speed testing (?benchmark=1)
+    this.isBenchmark = urlParams.get('benchmark') === '1';
+    this.benchmarkFrames = 0;
+    this.benchmarkTotalDt = 0;
+    this.benchmarkFpsSamples = [];
+    this.benchmarkFinished = false;
 
     // Animation loop state
     this.lastTime = performance.now();
@@ -87,21 +107,103 @@ class DiwaliSkyApp {
       runSelfTests();
     }
 
+    const lightupParam = urlParams.get('receiver_lightup');
+    const livePreviewParam = urlParams.get('livepreview');
+    const buttonLaunchParam = urlParams.get('button_launch') === '1';
+    const showShareCardParam = urlParams.get('show_share_card') === '1';
+    const showEndCardParam = urlParams.get('show_end_card') === '1';
+    this.isFrozenDebug = false;
+
     // Freeze mode for exact frame testing: ?debug=1&freeze=7.5
     if (this.isDebug && this.freezeTime !== null && !isNaN(this.freezeTime)) {
       this.ui.clear();
-      this.playShow(this.queryName, this.querySender);
+      this.recomputeFrozenState();
+      this.isFrozenDebug = true;
+      this.isPaused = true;
+    } else if (this.isDebug && buttonLaunchParam) {
+      this.ui.showSenderFlow({ recipient: 'Priya' });
+      const submitBtn = document.querySelector('.ww-btn-primary');
+      let btnOrigin = { x: window.innerWidth * 0.25, y: window.innerHeight * 0.65 };
+      if (submitBtn) {
+        const r = submitBtn.getBoundingClientRect();
+        btnOrigin = { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+      }
+      const homeLayout = document.querySelector('.home-layout');
+      if (homeLayout) homeLayout.classList.add('animate-out');
+      this.fireworks.launch(this.skyManager.width * 0.35, this.skyManager.height * 0.28, 'peony', null, btnOrigin);
       const stepDt = 1 / 60;
-      while (this.show.currentTime < this.freezeTime) {
+      for (let s = 0; s < 18; s++) {
         this.skyManager.updateAndDraw(stepDt);
         this.fireworks.update(stepDt);
         this.particlePool.update(stepDt);
-        this.show.update(stepDt);
+        this.particlePool.draw(this.skyManager.fireworksCtx, this.skyManager.width, this.skyManager.height, stepDt);
+        this.fireworks.draw(this.skyManager.fireworksCtx);
       }
-      this.particlePool.draw(this.skyManager.fireworksCtx, this.skyManager.width, this.skyManager.height, stepDt);
-      this.fireworks.draw(this.skyManager.fireworksCtx);
-      this.show.draw(this.skyManager.fireworksCtx, stepDt);
+      this.skyManager.updateBloom();
+      this.isFrozenDebug = true;
       this.isPaused = true;
+    } else if (this.isDebug && showShareCardParam) {
+      this.isReceiverFlow = false;
+      this.ui.currentData = { recipient: 'Priya', sender: 'Vivek', greeting: 'Happy Diwali' };
+      this.playShow('Priya', 'Vivek');
+      const stepDt = 1 / 60;
+      while (this.show.currentTime < 10.0) {
+        const isHold = this.show.currentTime >= 4.6 && this.show.currentTime < 9.5;
+        this.skyManager.updateAndDraw(stepDt, isHold);
+        this.fireworks.update(stepDt);
+        this.particlePool.update(stepDt);
+        this.show.update(stepDt);
+        this.particlePool.draw(this.skyManager.fireworksCtx, this.skyManager.width, this.skyManager.height, stepDt);
+        this.fireworks.draw(this.skyManager.fireworksCtx);
+        this.show.draw(this.skyManager.fireworksCtx, stepDt);
+      }
+      this.skyManager.updateBloom();
+      this.isFrozenDebug = true;
+      this.isPaused = true;
+    } else if (this.isDebug && showEndCardParam) {
+      this.isReceiverFlow = true;
+      this.ui.currentData = { recipient: 'Priya', sender: 'Vivek', greeting: 'Happy Diwali' };
+      this.playShow('Priya', 'Vivek');
+      const stepDt = 1 / 60;
+      while (this.show.currentTime < 10.0) {
+        const isHold = this.show.currentTime >= 4.6 && this.show.currentTime < 9.5;
+        this.skyManager.updateAndDraw(stepDt, isHold);
+        this.fireworks.update(stepDt);
+        this.particlePool.update(stepDt);
+        this.show.update(stepDt);
+        this.particlePool.draw(this.skyManager.fireworksCtx, this.skyManager.width, this.skyManager.height, stepDt);
+        this.fireworks.draw(this.skyManager.fireworksCtx);
+        this.show.draw(this.skyManager.fireworksCtx, stepDt);
+      }
+      this.skyManager.updateBloom();
+      this.isFrozenDebug = true;
+      this.isPaused = true;
+    } else if (this.isDebug && lightupParam !== null) {
+      this.isReceiverFlow = true;
+      this.ui.showReceiverFlow({ recipient: this.queryName || 'Priya', sender: this.querySender || 'Vivek', greeting: 'Happy Diwali' });
+      const lightTime = parseFloat(lightupParam);
+      if (lightTime <= 0) {
+        this.skyManager.setReceiverDimmed(true);
+      } else {
+        this.skyManager.setReceiverDimmed(true);
+        this.skyManager.startReceiverLightUp();
+        const stepDt = 1 / 60;
+        let elapsed = 0;
+        while (elapsed < lightTime && this.skyManager.scene.isLightingUp) {
+          elapsed += stepDt;
+          this.skyManager.updateAndDraw(stepDt);
+        }
+        if (lightTime >= 1.5) {
+          this.skyManager.scene.isReceiverDimmed = false;
+          this.skyManager.scene.receiverLightUpProgress = 1.0;
+        }
+      }
+      this.skyManager.updateAndDraw(0);
+      this.isFrozenDebug = true;
+      this.isPaused = true;
+    } else if (this.isDebug && livePreviewParam !== null) {
+      this.ui.showSenderFlow({ recipient: livePreviewParam });
+      this.skyManager.setLivePreviewName(livePreviewParam);
     } else if (this.isDemoMode) {
       this.demoManager.start(this.demoName);
     } else {
@@ -134,32 +236,90 @@ class DiwaliSkyApp {
       const fixedDt = 1 / 60;
       const count = Math.max(1, Math.round(seconds / fixedDt));
       for (let i = 0; i < count; i++) {
-        this.skyManager.updateAndDraw(fixedDt);
+        const isHold = this.show.isActive && this.show.currentTime >= 4.6 && this.show.currentTime < 9.5;
+        const nameBounds = (this.show.isActive && this.show.nameData) ? this.show.nameData.bounds : null;
+        if (this.show.isActive) {
+          this.skyManager.setCameraPush(this.show.currentTime, this.show.heroTargetX, this.show.heroTargetY);
+        }
+        this.skyManager.updateAndDraw(fixedDt, isHold, nameBounds);
         this.fireworks.update(fixedDt);
         this.particlePool.update(fixedDt);
         this.show.update(fixedDt);
+        this.particlePool.draw(this.skyManager.fireworksCtx, this.skyManager.width, this.skyManager.height, fixedDt);
+        this.fireworks.draw(this.skyManager.fireworksCtx);
+        this.show.draw(this.skyManager.fireworksCtx, fixedDt);
       }
-      this.particlePool.draw(this.skyManager.fireworksCtx, this.skyManager.width, this.skyManager.height, fixedDt);
-      this.fireworks.draw(this.skyManager.fireworksCtx);
-      this.show.draw(this.skyManager.fireworksCtx, fixedDt);
+      this.skyManager.updateBloom();
       console.log(`[FrameTool] Stepped forward ${seconds}s to show time: ${this.show.currentTime.toFixed(3)}s`);
     };
   }
 
+  setQualityTier(tier) {
+    this.qualityTier = tier;
+    if (this.particlePool) this.particlePool.setQualityTier(tier);
+    if (this.skyManager) this.skyManager.setQualityTier(tier);
+  }
+
   wireAudioCallbacks() {
     this.fireworks.onLaunch = () => this.sound.playLaunch();
-    this.fireworks.onBurst = (type) => this.sound.playBurst(type);
-    this.fireworks.onCrackle = () => this.sound.playCrackle();
-
-    this.show.onHeroBoom = () => this.sound.playBurst('peony');
-    this.show.onNameArrival = () => this.sound.playNameArrival();
-    this.show.onMeltBegin = () => {
-      if (this.isReceiverFlow) {
-        this.ui.showEndCard();
-      } else {
-        this.ui.showSharePanel();
+    this.fireworks.onBurst = (type, x, y, colors) => {
+      this.sound.playBurst(type);
+      if (x !== undefined && y !== undefined) {
+        const colId = (colors && colors[0] !== undefined) ? colors[0] : 0;
+        this.skyManager.addBurstLight(x, y, colId);
       }
     };
+    this.fireworks.onCrackle = () => this.sound.playCrackle();
+
+    this.show.onHeroBoom = () => {
+      this.sound.playBurst('peony');
+      this.skyManager.addBurstLight(this.show.heroTargetX, this.show.heroTargetY, 0);
+    };
+    this.show.onNameArrival = () => this.sound.playNameArrival();
+    this.show.onCaptureStill = () => {
+      this.capturedStillUrl = this.captureStillImage();
+    };
+    this.show.onMeltBegin = () => {
+      if (!this.capturedStillUrl) {
+        this.capturedStillUrl = this.captureStillImage();
+      }
+      if (this.isReceiverFlow) {
+        this.ui.showEndCard(this.capturedStillUrl);
+      } else {
+        this.ui.showSharePanel(this.capturedStillUrl);
+      }
+    };
+  }
+
+  setReceiverDimmed(isDimmed) {
+    this.skyManager.setReceiverDimmed(isDimmed);
+  }
+
+  startReceiverLightUp(onComplete) {
+    this.skyManager.startReceiverLightUp(onComplete);
+  }
+
+  setLivePreviewName(name) {
+    this.skyManager.setLivePreviewName(name);
+  }
+
+  captureStillImage() {
+    try {
+      const width = this.skyManager.width;
+      const height = this.skyManager.height;
+      const canvas = document.createElement('canvas');
+      const targetW = 480;
+      const targetH = Math.round(targetW * (height / width));
+      canvas.width = targetW;
+      canvas.height = targetH;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(this.skyCanvas, 0, 0, targetW, targetH);
+      ctx.drawImage(this.fireworksCanvas, 0, 0, targetW, targetH);
+      return canvas.toDataURL('image/jpeg', 0.85);
+    } catch (err) {
+      console.error('Failed to capture still image:', err);
+      return null;
+    }
   }
 
   handleHashRoute() {
@@ -184,11 +344,21 @@ class DiwaliSkyApp {
     this.particlePool.setReducedMotion(isReduced);
     this.fireworks.setReducedMotion(isReduced);
     this.show.setReducedMotion(isReduced);
+    if (this.skyManager) this.skyManager.setReducedMotion(isReduced);
   }
 
-  playShow(name = 'Priya', sender = 'Vivek', greeting = 'Happy Diwali') {
+  playShow(name = 'Priya', sender = 'Vivek', greeting = 'Happy Diwali', startRocketFromButton = false) {
     this.enableAmbient = false;
-    this.show.start(name, sender, greeting);
+    this.capturedStillUrl = null;
+    this.show.start(name, sender, greeting, startRocketFromButton);
+    this.lastTime = performance.now();
+    if (this.isBenchmark) {
+      this.benchmarkFrames = 0;
+      this.benchmarkTotalDt = 0;
+      this.benchmarkFpsSamples = [];
+      this.benchmarkFinished = false;
+      window.dsBenchmarkResults = null;
+    }
     this.show.onComplete = () => {
       this.enableAmbient = true;
     };
@@ -300,14 +470,75 @@ class DiwaliSkyApp {
       const isPhone = window.innerWidth < 600;
       const budget = isPhone ? 2500 : 6000;
       this.particlePool.setBudget(budget);
+      if (this.isFrozenDebug) {
+        if (this.freezeTime !== null && !isNaN(this.freezeTime)) {
+          this.recomputeFrozenState();
+        }
+        this.renderFrozenFrame();
+      }
     });
+  }
+
+  recomputeFrozenState() {
+    if (this.isDebug && this.freezeTime !== null && !isNaN(this.freezeTime)) {
+      this.particlePool.clear();
+      this.fireworks.rockets = [];
+      this.playShow(this.queryName || 'Priya', this.querySender || 'Vivek');
+      const stepDt = 1 / 60;
+      while (this.show.currentTime < this.freezeTime) {
+        const isHold = this.show.isActive && this.show.currentTime >= 4.6 && this.show.currentTime < 9.5;
+        const nameBounds = (this.show.isActive && this.show.nameData) ? this.show.nameData.bounds : null;
+        if (this.show.isActive) {
+          this.skyManager.setCameraPush(this.show.currentTime, this.show.heroTargetX, this.show.heroTargetY);
+        }
+        this.skyManager.updateAndDraw(stepDt, isHold, nameBounds);
+        this.fireworks.update(stepDt);
+        this.particlePool.update(stepDt);
+        this.show.update(stepDt);
+        this.particlePool.draw(this.skyManager.fireworksCtx, this.skyManager.width, this.skyManager.height, stepDt);
+        this.fireworks.draw(this.skyManager.fireworksCtx);
+        this.show.draw(this.skyManager.fireworksCtx, stepDt);
+      }
+      this.skyManager.updateBloom();
+
+      if (this.debugHud) {
+        if (this.debugFpsEl) this.debugFpsEl.textContent = `FPS: 60`;
+        if (this.debugParticlesEl) {
+          const totalParticles = this.particlePool.getActiveCount() + (this.show.isActive ? this.show.sparkCount : 0);
+          this.debugParticlesEl.textContent = `Particles: ${totalParticles}`;
+        }
+        if (this.debugRocketsEl) {
+          this.debugRocketsEl.textContent = `Rockets: ${this.fireworks.getRocketCount()}`;
+        }
+      }
+    }
+  }
+
+  renderFrozenFrame() {
+    if (!this.isFrozenDebug) return;
+    const isHold = this.show.isActive && this.show.currentTime >= 4.6 && this.show.currentTime < 9.5;
+    const nameBounds = (this.show.isActive && this.show.nameData) ? this.show.nameData.bounds : null;
+    if (this.show.isActive) {
+      this.skyManager.setCameraPush(this.show.currentTime, this.show.heroTargetX, this.show.heroTargetY);
+    }
+    this.skyManager.scene.draw(isHold, nameBounds);
+    this.skyManager.fireworksCtx.clearRect(0, 0, this.skyManager.width, this.skyManager.height);
+    this.particlePool.draw(this.skyManager.fireworksCtx, this.skyManager.width, this.skyManager.height, 0.016);
+    this.fireworks.draw(this.skyManager.fireworksCtx);
+    this.show.draw(this.skyManager.fireworksCtx, 0);
+    this.skyManager.updateBloom();
   }
 
   startLoop() {
     const loop = (now) => {
       requestAnimationFrame(loop);
 
-      if (this.isPaused) return;
+      if (this.isPaused) {
+        if (this.isFrozenDebug) {
+          this.renderFrozenFrame();
+        }
+        return;
+      }
 
       // Delta time in seconds, capped at 0.05
       let dt = (now - this.lastTime) / 1000;
@@ -322,19 +553,60 @@ class DiwaliSkyApp {
       const avgFps = this.fpsHistory.reduce((a, b) => a + b, 0) / this.fpsHistory.length;
       this.currentFps = Math.round(avgFps);
 
-      // Performance evaluation during first 2 seconds: cut budget by 30% if under 45 fps
-      const elapsed = (now - this.startTime) / 1000;
-      if (!this.hasEvaluatedPerformance && elapsed >= 2.0 && this.fpsHistory.length >= 25) {
-        this.hasEvaluatedPerformance = true;
-        if (avgFps < 45) {
-          const reducedBudget = Math.floor(this.initialBudget * 0.7);
-          this.particlePool.setBudget(reducedBudget);
-          console.warn(`Frame rate under 45 fps (${Math.round(avgFps)} fps). Reduced particle budget to ${reducedBudget}.`);
+      // Performance evaluation every 2 seconds: step down one tier if under 45 fps (Section 6)
+      this.perfEvalTimer += dt;
+      this.perfEvalFrames++;
+      if (this.perfEvalTimer >= 2.0) {
+        const windowAvgFps = this.perfEvalFrames / this.perfEvalTimer;
+        this.perfEvalTimer = 0;
+        this.perfEvalFrames = 0;
+
+        if (!this.isQualityForced && windowAvgFps < 45) {
+          if (this.qualityTier === 'high') {
+            console.warn(`Frame rate under 45 fps (${Math.round(windowAvgFps)} fps). Stepping down from High to Medium tier.`);
+            this.setQualityTier('medium');
+          } else if (this.qualityTier === 'medium') {
+            console.warn(`Frame rate under 45 fps (${Math.round(windowAvgFps)} fps). Stepping down from Medium to Low tier.`);
+            this.setQualityTier('low');
+          }
         }
       }
 
-      // Update and draw background sky, stars, and diyas
-      this.skyManager.updateAndDraw(dt);
+      // Benchmark tracking (?benchmark=1)
+      if (this.isBenchmark && this.show.isActive) {
+        this.benchmarkFrames++;
+        this.benchmarkTotalDt += dt;
+        this.benchmarkFpsSamples.push(instantFps);
+
+        if (this.show.currentTime >= 11.5 && !this.benchmarkFinished) {
+          this.benchmarkFinished = true;
+          const avg = this.benchmarkFrames / this.benchmarkTotalDt;
+          this.benchmarkFpsSamples.sort((a, b) => a - b);
+          const p1 = this.benchmarkFpsSamples[Math.floor(this.benchmarkFpsSamples.length * 0.01)] || 0;
+          const p50 = this.benchmarkFpsSamples[Math.floor(this.benchmarkFpsSamples.length * 0.5)] || 0;
+          window.dsBenchmarkResults = {
+            tier: this.qualityTier,
+            avgFps: Math.round(avg * 10) / 10,
+            p1Fps: Math.round(p1 * 10) / 10,
+            medianFps: Math.round(p50 * 10) / 10,
+            totalFrames: this.benchmarkFrames,
+            duration: Math.round(this.benchmarkTotalDt * 10) / 10
+          };
+          console.log(`[BENCHMARK] Tier: ${this.qualityTier}, Avg FPS: ${window.dsBenchmarkResults.avgFps}, 1% Low: ${window.dsBenchmarkResults.p1Fps}`);
+        }
+      }
+
+      // Camera push and name hold status
+      const isHold = this.show.isActive && this.show.currentTime >= 4.6 && this.show.currentTime < 9.5;
+      const nameBounds = (this.show.isActive && this.show.nameData) ? this.show.nameData.bounds : null;
+      if (this.show.isActive) {
+        this.skyManager.setCameraPush(this.show.currentTime, this.show.heroTargetX, this.show.heroTargetY);
+      } else {
+        this.skyManager.setCameraPush(0, this.skyManager.width * 0.5, this.skyManager.height * 0.38);
+      }
+
+      // Update and draw background sky, depth layers, lanterns, and diyas
+      this.skyManager.updateAndDraw(dt, isHold, nameBounds);
 
       // Update fireworks rockets, particles, and show timeline
       this.fireworks.update(dt);
@@ -354,6 +626,9 @@ class DiwaliSkyApp {
 
       // Draw name sparks and text overlays
       this.show.draw(this.skyManager.fireworksCtx, dt);
+
+      // Update bloom canvas (High tier)
+      this.skyManager.updateBloom();
 
       // Ambient fireworks when show is not actively forming
       if (this.enableAmbient && !this.show.isActive) {
