@@ -1,167 +1,102 @@
-<div align="center">
+# Diwali Sky — Real-Time Fireworks Simulator & Particle Engine
 
-# 🎆 Diwali Sky
-### *Cinematic Festive Web Application Writing Custom Names in Fireworks Across a Temple Night Sky*
-
-Launch rockets, hear synthesized bronze temple bells, and watch custom names burst into glowing firework spark particles in real time.
-
-[![Live Deployment](https://img.shields.io/badge/Live_App-diwalisky.vercel.app-F59E0B?style=for-the-badge&logo=vercel&logoColor=white)](https://diwalisky.vercel.app)
-[![Autonomous Demo](https://img.shields.io/badge/Demo-Live_Reel-EC4899?style=for-the-badge&logo=googlechrome&logoColor=white)](https://diwalisky.vercel.app/?demo=1&name=Priya)
-[![Self-Test Suite](https://img.shields.io/badge/Test_Suite-43%2F43_Tests_Passing-22C55E?style=for-the-badge&logo=checkmarx&logoColor=white)](https://diwalisky.vercel.app/?test=1)
-[![GitHub Repository](https://img.shields.io/badge/GitHub-Pradeep--B28%2FDiwali__Sky-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/Pradeep-B28/Diwali_Sky)
-[![Author](https://img.shields.io/badge/Author-Pradeep_B-0B2A45?style=for-the-badge&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/pradeepb-2k)
-[![License: MIT](https://img.shields.io/badge/License-MIT-F59E0B?style=for-the-badge)](LICENSE)
-
-<p align="center">
-  <a href="#-features--visuals">Cinematic Features</a> •
-  <a href="#-how-to-use">How to Use</a> •
-  <a href="#-technical-architecture">Architecture</a> •
-  <a href="#-procedural-audio-synthesis">Web Audio</a> •
-  <a href="#-quality-tiers--benchmarks">Performance</a> •
-  <a href="#-repository-structure">Repository Structure</a> •
-  <a href="#-local-development">Local Setup</a> •
-  <a href="#-author--contact">Author & Contact</a>
-</p>
-
-</div>
+> **Live Application:** [diwalisky.vercel.app](https://diwalisky.vercel.app/)  
+> **Autonomous Interactive Reel:** [diwalisky.vercel.app/?demo=1&name=Priya](https://diwalisky.vercel.app/?demo=1&name=Priya)  
+> **In-Browser Test Suite:** [diwalisky.vercel.app/?test=1](https://diwalisky.vercel.app/?test=1)  
+> **Author:** [B Pradeep](https://github.com/Pradeep-B28) · [Portfolio](https://pradeep-b28.github.io/Pradeep-B28/)
 
 ---
 
-## ✨ Cinematic Features & Visuals
+## Overview
 
-- **Procedural Scenic Background:** A rooftop terrace parapet with four clay diyas flickering in warm amber halos, an illuminated three-layer city skyline with glowing windows, a south-Indian temple gopuram silhouette with temple lights, soft ground mist bands, and rising paper lanterns drifting gently skyward.
-- **Cinematic Receiver Light-Up:** When a recipient opens their private greeting link, the scene begins in near-darkness (10% brightness) and awakens over 1.5 seconds accompanied by a resonant synthesized bronze temple bell chime.
-- **Dynamic Camera Push:** A smooth zoom (1.0x to 1.14x) and pan gently centers on the hero rocket detonation and name formation, returning to resting framing as the sparks dissolve.
-- **Name Aura and Shimmer Glints:** The recipient name glows with a soft brand gradient aura (`#34D399` to `#22D3EE`), accented by sparkling white glints that glimmer across the letterforms.
-- **Live Input Preview:** As the sender types into the recipient input, subtle glowing trajectory sparks trace the letterforms in the sky above the card.
-- **Button Launch Animation:** Tapping "Light it up" launches a live firework rocket directly from the button coordinates before the main show commences.
-- **Zero-Backend URL Hash Privacy:** Personalized greetings are encoded in base64url URL hashes (`#s=PAYLOAD`), meaning greeting details are never transmitted to any server.
+**Diwali Sky** is a hardware-accelerated 2D canvas particle simulator and procedural audio engine that renders cinematic fireworks and spells personalized typography in explosive spark physics across a nighttime temple skyline.
 
----
+Engineered with zero external dependencies, zero sound files, and zero runtime frameworks. Features high-performance TypedArray particle pooling with zero garbage collection allocations in the 60 FPS animation loop.
 
-## 🚀 How to Use
-
-1. Type your friend's name and your name.
-2. Watch live preview sparkles outline the letters as you type.
-3. Tap **"Light it up"** to launch a rocket straight from the button into the sky.
-4. Share the private link on WhatsApp or social media so your recipient can experience the full cinematic surprise with audio.
-
----
-
-## 🛠️ Technical Architecture
-
-The application is built with 100% plain HTML5, CSS3, and modern Vanilla JavaScript (ES6+), running completely client-side with zero external dependencies and zero external asset downloads.
-
-### Canvas Stack
-The viewport consists of three hardware-accelerated stacked canvases:
-1. `#sky-canvas`: Renders the procedural night sky, stars, illuminated city skyline, temple gopuram, mist, drifting lanterns, and clay diyas.
-2. `#fireworks-canvas`: Renders active physics particles, rising rockets, glowing sparks, and letterform text overlays.
-3. `#bloom-canvas`: A dedicated half-resolution offscreen canvas using CSS blur and blend modes to produce soft atmospheric bloom around fireworks.
-
-### High-Performance Particle Engine
-- All particles reside in pre-allocated `Float32Array` buffers (position, velocity, life, decay, size, color, alpha).
-- Zero object allocations occur inside the 60 FPS animation loop, preventing Garbage Collection pauses.
-- During the name hold moment ($t=4.6\text{s}$ to $9.5\text{s}$), static name sparks are pre-baked onto an offscreen canvas to avoid redundant draw calls.
+```mermaid
+flowchart TD
+    User["User Customization\n(Recipient Name & Sound Trigger)"] --> Engine["Simulation Director\n(Timeline Orchestrator & Camera Zoom)"]
+    
+    subgraph Multi-Canvas Render Pipeline
+        SkyCanvas["#sky-canvas\n(Procedural Skyline, Stars, Diyas, Gopuram)"]
+        FireCanvas["#fireworks-canvas\n(Float32Array Physics Particles & Text Splines)"]
+        BloomCanvas["#bloom-canvas\n(Offscreen Half-Res Gaussian Glow Pass)"]
+    end
+    
+    Engine --> SkyCanvas
+    Engine --> FireCanvas
+    Engine --> BloomCanvas
+    
+    subgraph Procedural Web Audio Engine
+        Whistle["Ascending Frequency Whistle (OscillatorNode)"]
+        Boom["Low-Pass Filtered Noise Burst (BiquadFilter)"]
+        Bell["Additive Modal Temple Bell (Bronze Resonances)"]
+    end
+    
+    Engine --> Whistle
+    Engine --> Boom
+    Engine --> Bell
+```
 
 ---
 
-## 🔊 Procedural Web Audio Synthesis
+## Engineering Highlights
 
-Audio is synthesized entirely through the browser's native **Web Audio API** with zero audio files:
-- **Rocket Whistles:** Swept sine wave oscillator with exponential frequency ascent.
-- **Hero Booms:** Low-pass filtered noise burst with exponential volume drop.
-- **Crackles:** Bandpass-filtered random pulse spikes.
-- **Arrival Shimmer:** Dual sine wave arpeggio chime.
-- **Temple Bell:** Additive synthesis combining fundamental and non-harmonic bronze modal frequencies with resonant exponential decay.
+| Feature | Technical Architecture |
+| :--- | :--- |
+| **Zero GC Particle Pooling** | All particle attributes (x, y, vx, vy, life, decay, size, color) reside in pre-allocated `Float32Array` buffers. Zero objects are allocated during 60 FPS rendering, eliminating garbage collection frame drops. |
+| **Stacked Canvas Pipeline** | Three hardware-accelerated canvas layers: static background `#sky-canvas`, dynamic particle `#fireworks-canvas`, and a half-resolution `#bloom-canvas` utilizing blend modes for atmospheric illumination. |
+| **Procedural Audio Synthesis** | All audio (rocket launch sweeps, concussive explosions, bronze temple bells, spark crackles) is generated via the native browser Web Audio API—zero MP3 or WAV network downloads. |
+| **Dynamic Quality Throttle** | Continuously samples render times over 2-second windows. If frame rates drop below 45 FPS on low-power devices, particle counts and bloom passes automatically step down to preserve smooth interaction. |
+| **Zero-Server URL Privacy** | Recipient names and customization parameters are serialized entirely in client-side base64url URL hashes (`#s=...`), guaranteeing privacy with no telemetry backend. |
 
 ---
 
-## 📊 Quality Tiers & Benchmarks
+## Dynamic Performance Scaling
 
-Diwali Sky dynamically monitors true rendering frame rates over rolling 2-second windows. If average FPS drops below 45, it automatically steps down tiers to maintain buttery-smooth playback.
-
-| Feature | High Tier (Desktop Default) | Medium Tier (Mobile Default) | Low Tier (Power Saver) |
+| Metric | High Tier (Desktop Default) | Medium Tier (Mobile Default) | Low Tier (Power Saver) |
 | :--- | :--- | :--- | :--- |
-| **Particle Budget** | 6,000 particles | 2,500 particles | 1,500 particles |
-| **Atmospheric Bloom** | Enabled (half-res blur) | Disabled | Disabled |
-| **Background Scene** | Full (Gopuram, City, Lanterns, Diyas) | Full (Gopuram, City, Lanterns, Diyas) | Simplified Static Skyline |
-| **Camera Push** | Smooth 1.14x zoom | Smooth 1.14x zoom | Static Framing |
-| **Alpha Sorting** | 8 alpha bins | 8 alpha bins | 4 alpha bins |
+| **Active Particle Cap** | 6,000 particles | 2,500 particles | 1,500 particles |
+| **Atmospheric Bloom Pass** | Enabled (half-resolution) | Disabled | Disabled |
+| **Background Detail** | Gopuram, city skyline, diyas, lanterns | Full skyline | Simplified static silhouette |
+| **Dynamic Camera Push** | 1.14x smooth focal zoom | 1.14x smooth focal zoom | Static camera |
 | **Target Frame Rate** | 60 FPS | $\ge$ 45 FPS | $\ge$ 45 FPS |
 
 ---
 
-## 📂 Repository Structure
+## Automated In-Browser Verification
+
+The project includes an integrated test suite validating particle buffer integrity, audio graph connections, text rasterization, and URL hash serialization:
 
 ```
-Diwali_Sky/
-├── index.html        Multi-canvas viewport stack, responsive card layouts, and meta tags
-├── styles.css        Design tokens, responsive layouts, card glassmorphism, and animations
-├── manifest.json     PWA configuration, brand icons, and theme colors
-├── LICENSE           MIT Open Source License
-├── README.md         Project overview, architecture, and instructions
-├── REEL_SCRIPT.md    Short video recording scripts
-├── assets/           Brand logo, favicon, and 1200x630 Open Graph preview image
-├── tools/
-│   └── og.html       Open Graph preview canvas renderer
-└── js/
-    ├── main.js       Application bootstrap, routing, quality tiers, and animation loop
-    ├── sky.js        Stacked canvas manager, camera transform, and offscreen bloom compositor
-    ├── scene.js      Procedural background scene (sky gradient, gopuram, city, mist, diyas)
-    ├── sprites.js    Offscreen pre-rendered particle glow sprites and radial gradients
-    ├── particles.js  Pre-allocated typed array pool (Float32Array) and alpha bin sorter
-    ├── fireworks.js  Rocket trajectories and 4 burst types (peony, willow, ring, crackle)
-    ├── nameText.js   Transforms names into target spark coordinates with adaptive stride
-    ├── show.js       12-second choreographed sequence, hero homing, camera push, and hold state
-    ├── audio.js      Web Audio synthesizers (launch whistles, booms, crackles, temple bell)
-    ├── validate.js   Name validation and Unicode grapheme cluster counting
-    ├── blocklist.js  Content safety and abuse filter list
-    ├── link.js       Private URL hash encoder and parser (v1 and v2 formats)
-    ├── share.js      WhatsApp share and native Web Share integration
-    ├── ui.js         Cards, forms, live input preview, and audio permission pill
-    ├── demo.js       Automated typing loop for recording reels
-    └── selftest.js   Automated 43-test verification suite
+https://diwalisky.vercel.app/?test=1
 ```
 
 ---
 
-## 💻 Local Development
+## Local Development Setup
 
-Diwali Sky has zero external dependencies.
+No build step, compilation, or package manager installation is required.
 
-```bash
-# Clone the repository
-git clone https://github.com/Pradeep-B28/Diwali_Sky.git
-cd Diwali_Sky
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/Pradeep-B28/Diwali_Sky.git
+   cd Diwali_Sky
+   ```
 
-# Run local web server
-python -m http.server 8000
-```
-Open `http://localhost:8000` in any modern web browser.
+2. **Run a static HTTP server:**
+   ```bash
+   # Using Python 3
+   python -m http.server 8000
+   ```
 
-- **Run Browser Self-Tests (43/43):** `http://localhost:8000/?test=1`
-- **Run Reel Demo Mode:** `http://localhost:8000/?demo=1&name=Priya`
-- **Run Performance Benchmark:** `http://localhost:8000/?benchmark=1&quality=medium`
-
----
-
-## 📄 License
-
-This project is open-source and released under the **[MIT License](LICENSE)**.
-
-```
-Copyright (c) 2026 Pradeep B (Pradeep-B28) & Wrench Wise
-```
+3. **Open in browser:**
+   ```
+   http://localhost:8000/
+   ```
 
 ---
 
-## 👨‍💻 Author & Contact
+## License
 
-**Pradeep B**  
-*Java & DSA Master Trainer | Full-Stack Architect | Web Platform Engineer*
-
-- 🌐 **Softech Career & Placement Portal:** [reachsoftech.onrender.com](https://reachsoftech.onrender.com/home)
-- 🌌 **3D Interactive Developer Portfolio:** [pradeep-b28.github.io/GIT_3D_Portfolio](https://pradeep-b28.github.io/GIT_3D_Portfolio/)
-- 💻 **GitHub Profile:** [@Pradeep-B28](https://github.com/Pradeep-B28)
-- 💼 **LinkedIn:** [linkedin.com/in/pradeepb-2k](https://www.linkedin.com/in/pradeepb-2k)
-- 📧 **Email:** [pradeepbashaa@gmail.com](mailto:pradeepbashaa@gmail.com)
+This project is licensed under the [MIT License](LICENSE).
