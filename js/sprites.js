@@ -16,6 +16,9 @@ export const PALETTE_RGB = [
 
 // Helper to render one 64x64 glow sprite onto an offscreen canvas
 function createGlowSprite(r, g, b) {
+  if (typeof document === 'undefined') {
+    return null;
+  }
   const canvas = document.createElement('canvas');
   canvas.width = SPRITE_SIZE;
   canvas.height = SPRITE_SIZE;
@@ -53,16 +56,16 @@ for (let i = 0; i < NAME_GRADIENT_STEPS; i++) {
   const u = i / (NAME_GRADIENT_STEPS - 1);
   let r, g, b;
 
-  if (u < 0.5) {
-    // Emerald to Teal
+  if (u <= 0.5) {
+    // 0..0.5: emerald -> teal
     const t = u / 0.5;
-    r = Math.round(52 + (45 - 52) * t);
+    r = Math.round(52  + (45  - 52)  * t);
     g = Math.round(211 + (212 - 211) * t);
     b = Math.round(153 + (191 - 153) * t);
   } else {
-    // Teal to Cyan
+    // 0.5..1: teal -> cyan
     const t = (u - 0.5) / 0.5;
-    r = Math.round(45 + (34 - 45) * t);
+    r = Math.round(45  + (34  - 45)  * t);
     g = Math.round(212 + (211 - 212) * t);
     b = Math.round(191 + (238 - 191) * t);
   }
@@ -70,25 +73,15 @@ for (let i = 0; i < NAME_GRADIENT_STEPS; i++) {
   NAME_GRADIENT_SPRITES.push(createGlowSprite(r, g, b));
 }
 
-// Gold glint sprite (spark-gold)
-export const GLINT_SPRITE = PALETTE_SPRITES[4];
+// 3. Glint sprite (gold glow for trailing sparkles)
+export const GLINT_SPRITE = createGlowSprite(252, 211, 77);
 
-/**
- * Returns the glow sprite for a palette color ID
- * @param {number} colorId
- * @returns {HTMLCanvasElement}
- */
-export function getPaletteSprite(colorId) {
-  return PALETTE_SPRITES[colorId] || PALETTE_SPRITES[0];
-}
-
-/**
- * Returns the interpolated name gradient sprite for u in [0, 1]
- * @param {number} u
- * @returns {HTMLCanvasElement}
- */
+// 4. Gradient sprite resolver for normalized u (0..1)
 export function getNameGradientSprite(u) {
-  const clampedU = Math.min(1.0, Math.max(0.0, u));
-  const idx = Math.min(NAME_GRADIENT_STEPS - 1, Math.floor(clampedU * NAME_GRADIENT_STEPS));
+  const clamped = Math.max(0, Math.min(1, u));
+  const idx = Math.min(
+    NAME_GRADIENT_STEPS - 1,
+    Math.max(0, Math.round(clamped * (NAME_GRADIENT_STEPS - 1)))
+  );
   return NAME_GRADIENT_SPRITES[idx];
 }

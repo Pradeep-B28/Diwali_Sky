@@ -3,25 +3,27 @@
 import { SCENE_COLORS } from './sceneLayers.js';
 
 // Pre-rendered offscreen lantern sprite (32x40)
-const lanternCanvas = document.createElement('canvas');
-lanternCanvas.width = 32;
-lanternCanvas.height = 40;
-const lctx = lanternCanvas.getContext('2d');
-const lgrad = lctx.createLinearGradient(0, 0, 0, 40);
-lgrad.addColorStop(0.0, SCENE_COLORS.sparkAmber);
-lgrad.addColorStop(1.0, SCENE_COLORS.sparkGold);
-lctx.fillStyle = lgrad;
-lctx.beginPath();
-lctx.roundRect(0, 0, 32, 40, 5);
-lctx.fill();
-lctx.fillStyle = '#FFFFFF';
-lctx.globalAlpha = 0.85;
-lctx.beginPath();
-lctx.ellipse(16, 24, 7, 7, 0, 0, Math.PI * 2);
-lctx.fill();
+const lanternCanvas = typeof document !== 'undefined' ? document.createElement('canvas') : null;
+if (lanternCanvas) {
+  lanternCanvas.width = 32;
+  lanternCanvas.height = 40;
+  const lctx = lanternCanvas.getContext('2d');
+  const lgrad = lctx.createLinearGradient(0, 0, 0, 40);
+  lgrad.addColorStop(0.0, SCENE_COLORS.sparkAmber);
+  lgrad.addColorStop(1.0, SCENE_COLORS.sparkGold);
+  lctx.fillStyle = lgrad;
+  lctx.beginPath();
+  lctx.roundRect(0, 0, 32, 40, 5);
+  lctx.fill();
+  lctx.fillStyle = '#FFFFFF';
+  lctx.globalAlpha = 0.85;
+  lctx.beginPath();
+  lctx.ellipse(16, 24, 7, 7, 0, 0, Math.PI * 2);
+  lctx.fill();
+}
 
 // Pre-rendered 64x64 radial glow canvases for burst lighting
-const BURST_LIGHT_CANVASES = [
+const BURST_LIGHT_CANVASES = typeof document !== 'undefined' ? [
   '#34D399', '#2DD4BF', '#22D3EE', '#A7F3D0', '#FCD34D', '#FBBF24', '#F8FAFC'
 ].map(hex => {
   const cnv = document.createElement('canvas');
@@ -35,7 +37,7 @@ const BURST_LIGHT_CANVASES = [
   cctx.fillStyle = g;
   cctx.fillRect(0, 0, 64, 64);
   return cnv;
-});
+}) : [];
 
 export function createStars(width, height) {
   const count = width < 600 ? 120 : 200;
